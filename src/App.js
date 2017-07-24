@@ -75,7 +75,7 @@ class App extends React.PureComponent {
     super(props);
     const params = windowParams();
     this.state = {
-      query: params ? decodeURIComponent(params.query) || '' : '',
+      query: params.query ? decodeURIComponent(params.query) : '',
       params,
     };
     this._params = params;
