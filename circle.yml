@@ -11,5 +11,6 @@ deployment:
     branch: master
     commands:
       - yarn build
+      - cp build/index.html build/404.html
       - npm install -g firebase-tools
       - firebase deploy --token "$FIREBASE_TOKEN"
