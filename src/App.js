@@ -103,10 +103,20 @@ class App extends React.PureComponent {
     super(props);
     const params = windowParams();
     this.state = {
+      loggedIn: null,
       query: params.query ? decodeURIComponent(params.query) : '',
       params,
     };
     this._params = params;
+  }
+  componentDidMount() {
+    graphQLFetcher({query: 'query { me { google { email } }}'}).then(x => {
+      if (x.data && x.data.me && x.data.me.google && x.data.me.google.email) {
+        this.setState({loggedIn: true});
+      } else {
+        this.setState({loggedIn: false});
+      }
+    });
   }
   setParam = (param, value) => {
     this._params[param] = value;
@@ -130,13 +140,15 @@ class App extends React.PureComponent {
   render() {
     return (
       <div className="graphiql-container" style={{height: '100vh'}}>
-        <div style={{position: 'absolute', right: 85}}>
-          <div className="topBar">
-            <div className="toolbar">
-              <a className="toolbar-button" href={googleAuthUrl}>Log In</a>
+        {this.state.loggedIn === false
+          ? <div style={{position: 'absolute', right: 85}}>
+              <div className="topBar">
+                <div className="toolbar">
+                  <a className="toolbar-button" href={googleAuthUrl}>Log In</a>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          : null}
         <GraphiQL
           fetcher={graphQLFetcher}
           onEditQuery={this.onEditQuery}
