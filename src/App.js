@@ -2,6 +2,34 @@ import React from 'react';
 import GraphiQL from 'graphiql';
 import 'graphiql/graphiql.css';
 
+const DEV = process.env.NODE_ENV === 'development';
+
+const sandboxId = DEV
+  ? '5f05c6e7-5b7a-481f-8980-8358fe47f83d'
+  : '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
+const googleAuthScopes = [
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/youtube.force-ssl',
+  'https://www.googleapis.com/auth/userinfo.email',
+];
+
+const googleAuthParams = {
+  client_id: DEV
+    ? '724803268959-1vh888mcdelep2faonp6dmjci8o6gr3q.apps.googleusercontent.com'
+    : '724803268959-5grmngkut92velvb3m8f7h7igf5n0cra.apps.googleusercontent.com',
+  redirect_uri: DEV
+    ? 'http://localhost:8082/oauth/google/finish'
+    : 'https://serve.onegraph.io/oauth/google/finish',
+  response_type: 'code',
+  scope: googleAuthScopes.join(' '),
+  access_type: 'offline',
+  state: sandboxId,
+};
+const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+Object.keys(googleAuthParams).forEach(k =>
+  googleAuthUrl.searchParams.append(k, googleAuthParams[k]),
+);
+
 function windowParams() {
   const parameters = {};
   window.location.search.substr(1).split('&').forEach(function(entry) {
@@ -83,7 +111,7 @@ class App extends React.PureComponent {
   setParam = (param, value) => {
     this._params[param] = value;
     updateURL(this._params);
-  }
+  };
   onEditQuery = newQuery => {
     console.log('oneditquery');
     this.setState({
@@ -101,7 +129,14 @@ class App extends React.PureComponent {
   };
   render() {
     return (
-      <div style={{height: '100vh'}}>
+      <div className="graphiql-container" style={{height: '100vh'}}>
+        <div style={{position: 'absolute', right: 85}}>
+          <div className="topBar">
+            <div className="toolbar">
+              <a className="toolbar-button" href={googleAuthUrl}>Log In</a>
+            </div>
+          </div>
+        </div>
         <GraphiQL
           fetcher={graphQLFetcher}
           onEditQuery={this.onEditQuery}
