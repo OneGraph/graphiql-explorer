@@ -151,6 +151,9 @@ class App extends React.PureComponent {
     github {
       login
     }
+    stripe {
+      id
+    }
   }
 }`,
     }).then(x => {
@@ -158,7 +161,7 @@ class App extends React.PureComponent {
         googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
         githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
         sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
-        stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'account']),
+        stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'id']),
         twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screen_name']),
       });
     });
