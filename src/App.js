@@ -145,9 +145,7 @@ class App extends React.PureComponent {
     google {
       email
     }
-    twitter {
-      screen_name
-    }
+    isTwitterLoggedIn
     github {
       login
     }
@@ -162,7 +160,7 @@ class App extends React.PureComponent {
         githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
         sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
         stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'id']),
-        twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screen_name']),
+        twitterLoggedIn: !!getPath(x, ['data', 'me', 'isTwitterLoggedIn']),
       });
     });
     graphQLFetcher({query: introspectionQuery}).then(result => {
