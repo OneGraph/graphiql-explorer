@@ -1,8 +1,11 @@
 import React from 'react';
 import GraphiQL from 'graphiql';
 import 'graphiql/graphiql.css';
+import Graphitree from './graphitree.js';
+import {introspectionQuery, buildClientSchema} from 'graphql';
 
-const DEV = process.env.NODE_ENV === 'development';
+// const DEV = process.env.NODE_ENV === 'development';
+const DEV = true;
 
 const sandboxId = DEV
   ? '5f05c6e7-5b7a-481f-8980-8358fe47f83d'
@@ -18,7 +21,7 @@ const googleAuthParams = {
     ? '724803268959-1vh888mcdelep2faonp6dmjci8o6gr3q.apps.googleusercontent.com'
     : '724803268959-5grmngkut92velvb3m8f7h7igf5n0cra.apps.googleusercontent.com',
   redirect_uri: DEV
-    ? 'http://localhost:8082/oauth/google/finish'
+    ? 'http://serve.onegraph.dev:8082/oauth/google/finish'
     : 'https://serve.onegraph.io/oauth/google/finish',
   response_type: 'code',
   scope: googleAuthScopes.join(' '),
@@ -55,8 +58,9 @@ function locationQuery(params) {
   );
 }
 
-// const fetchURL = 'https://serve.onegraph.io/graphql';
+// const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
 const fetchURL = 'https://serve.onegraph.io';
+
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
   return fetch(fetchURL, {
@@ -66,7 +70,7 @@ function graphQLFetcher(graphQLParams) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(graphQLParams),
-    credentials: 'include',
+    // credentials: 'include',
   })
     .then(function(response) {
       return response.text();
@@ -97,15 +101,34 @@ function updateURL(params) {
 //       return run;
 //     }, {});
 
+let handleGQLExplorerUpdated = (editor, query) => {
+  const currentText = editor.getValue();
+  const {parse, print} = require('graphql');
+  var prettyText = query;
+  try {
+    prettyText = print(parse(query));
+  } catch (e) {}
+  editor.setValue(prettyText);
+};
+
 class App extends React.PureComponent {
-  state: {query: string, params: object};
+  state: {
+    query: string,
+    params: object,
+    showGraphitree: boolean,
+    rawSchema: object,
+    schema: object,
+    selectedNodes: object,
+  };
   constructor(props) {
     super(props);
     const params = windowParams();
     this.state = {
       loggedIn: null,
       query: params.query ? decodeURIComponent(params.query) : '',
+      showGraphitree: false,
       params,
+      selectedNodes: new Set([]),
     };
     this._params = params;
   }
@@ -117,13 +140,22 @@ class App extends React.PureComponent {
         this.setState({loggedIn: false});
       }
     });
+    graphQLFetcher({query: introspectionQuery}).then(result => {
+      if (result.data) {
+        this.setState(currentState => {
+          return {
+            schema: buildClientSchema(result.data),
+            rawSchema: result.data,
+          };
+        });
+      }
+    });
   }
   setParam = (param, value) => {
     this._params[param] = value;
     updateURL(this._params);
   };
   onEditQuery = newQuery => {
-    console.log('oneditquery');
     this.setState({
       query: newQuery,
     });
@@ -137,28 +169,99 @@ class App extends React.PureComponent {
     console.log('onEditOperationName');
     this.setParam('operationName', newOperationName);
   };
+  toggleGraphitree = () => {
+    console.log('toggle ffs');
+    this.setState(currentState => {
+      console.log({
+        showGraphitree: !currentState.showGraphitree,
+      });
+      return {
+        showGraphitree: !currentState.showGraphitree,
+      };
+    });
+  };
   render() {
     return (
-      <div className="graphiql-container" style={{height: '100vh'}}>
-        {this.state.loggedIn === false
-          ? <div style={{position: 'absolute', right: 85}}>
-              <div className="topBar">
-                <div className="toolbar">
-                  <a className="toolbar-button" href={googleAuthUrl}>Log In</a>
-                </div>
-              </div>
+      <div>
+        {this.state.showGraphitree && !!this.state.rawSchema
+          ? <div
+              className="graphitree-container"
+              style={{
+                height: '100vh',
+                width: '25%',
+                float: 'left',
+                overflow: 'scroll',
+              }}
+            >
+              <Graphitree
+                onQueryChange={query => {
+                  if (!!this.graphiql) {
+                    console.log('Query:', query);
+                    handleGQLExplorerUpdated(
+                      this.graphiql.getQueryEditor(),
+                      query,
+                    );
+                  }
+                  console.log('Query:', query);
+                }}
+                rawSchema={this.state.rawSchema}
+                selectedNodes={this.state.selectedNodes}
+              />
             </div>
           : null}
-        <GraphiQL
-          fetcher={graphQLFetcher}
-          onEditQuery={this.onEditQuery}
-          onEditVariables={this.onEditVariables}
-          onEditOperationName={this.onEditOperationName}
-          query={this.state.query || ''}
-          response={null}
-          variables={null}
-          operationName={null}
-        />
+        <div
+          className="graphiql-container"
+          style={{
+            height: '100vh',
+            width: this.state.showGraphitree ? '90%' : '100%',
+            position: 'absolute',
+            right: '0px',
+          }}
+        >
+          {this.state.loggedIn === false
+            ? <div style={{position: 'absolute', right: 170}}>
+                <div className="topBar">
+                  <div className="toolbar">
+                    <a
+                      className="toolbar-button"
+                      onClick={event => {
+                        this.toggleGraphitree.bind(this)();
+                        event.preventDefault();
+                        return false;
+                      }}
+                    >
+                      Tree
+                    </a>
+                  </div>
+                </div>
+              </div>
+            : null}
+          {this.state.loggedIn === false
+            ? <div style={{position: 'absolute', right: 85}}>
+                <div className="topBar">
+                  <div className="toolbar">
+                    <a className="toolbar-button" href={googleAuthUrl}>
+                      Log In
+                    </a>
+                  </div>
+                </div>
+              </div>
+            : null}
+          {!!this.state.schema
+            ? <GraphiQL
+                ref={c => (this.graphiql = c)}
+                fetcher={graphQLFetcher}
+                onEditQuery={this.onEditQuery}
+                onEditVariables={this.onEditVariables}
+                onEditOperationName={this.onEditOperationName}
+                query={this.state.query || ''}
+                response={null}
+                variables={null}
+                operationName={null}
+                schema={this.state.schema}
+              />
+            : null}
+        </div>
       </div>
     );
   }
