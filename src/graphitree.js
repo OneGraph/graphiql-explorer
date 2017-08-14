@@ -20,10 +20,9 @@ window.bq = basicQuery;
 
 var gqlOfQueryObj = function(obj, depth, output) {
   let keys = Object.keys(obj);
-  let localOutput = '';
   let depthStr = new Array(depth + 1).join('  ');
   keys.forEach(key => {
-    let nextStr = typeof obj[key] == 'object'
+    let nextStr = typeof obj[key] === 'object'
       ? depthStr +
           key +
           ' {\n' +
@@ -38,9 +37,6 @@ var gqlOfQueryObj = function(obj, depth, output) {
 };
 
 class TreeEntry extends React.Component {
-  constructor(props) {
-    super(props);
-  }
   handleClick(path) {
     this.props.handleNodesUpdated(path);
   }
@@ -51,7 +47,6 @@ class TreeEntry extends React.Component {
     // label. Controlled components make this effortless.
     var typeName = null;
     var tmpNodeTypeInfo = node.type;
-    var selectedNodes = this.props.selectedNodes;
     // Find the base type
     for (var i = 0; i < 10; i++) {
       if (tmpNodeTypeInfo.ofType == null) {
@@ -111,11 +106,13 @@ let buildGQLQuery = selectedNodes => {
     .sort((a, b) => {
       return b.length - a.length;
     })
-    .forEach(path => {
-      var path = path.split('||');
-      typeof getPath(r, path) == 'undefined'
-        ? setPath(r, path, true)
-        : typeof getPath(r, path) == 'object' ? null : null;
+    .forEach(stringPath => {
+      var path = stringPath.split('||');
+      if (typeof getPath(r, path) === 'undefined') {
+        setPath(r, path, true);
+      } else if (typeof getPath(r, path) === 'object') {
+      } else {
+      }
     });
   var query = 'query {\n' + gqlOfQueryObj(r, 1, '') + '\n}\n';
   return query;
@@ -157,11 +154,8 @@ class TreeTop extends React.Component {
 }
 
 class Graphitree extends Component {
-  constructor(props) {
-    super(props);
-  }
-  updateNodes(path) {
-    var path = path.join('||');
+  updateNodes(arrayPath) {
+    var path = arrayPath.join('||');
     var selectedNodes = this.props.selectedNodes;
     var deleteList = [];
     // Delete any key that starts with this path
@@ -171,7 +165,7 @@ class Graphitree extends Component {
       selectedNodes.delete(path);
       Array.from(selectedNodes).forEach(value => {
         console.log('\t', path, value, value.startsWith(path + '||'));
-        value.startsWith(path + '||') ? deleteList.push(value) : null;
+        if (value.startsWith(path + '||')) deleteList.push(value);
       });
       deleteList.forEach(key => selectedNodes.delete(key));
     };
@@ -180,8 +174,8 @@ class Graphitree extends Component {
     this.forceUpdate();
     this.props.onQueryChange(buildGQLQuery(this.props.selectedNodes));
   }
-  hasNode(path) {
-    var path = (path || []).join('||');
+  hasNode(arrayPath) {
+    var path = (arrayPath || []).join('||');
     var hasPath = this.props.selectedNodes.has(path);
     return hasPath;
   }

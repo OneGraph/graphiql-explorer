@@ -92,7 +92,6 @@ function updateURL(params) {
 //     }, {});
 
 let handleGQLExplorerUpdated = (editor, query) => {
-  const currentText = editor.getValue();
   const {parse, print} = require('graphql');
   var prettyText = query;
   try {
