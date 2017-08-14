@@ -3,35 +3,23 @@ import GraphiQL from 'graphiql';
 import 'graphiql/graphiql.css';
 import Graphitree from './graphitree.js';
 import {introspectionQuery, buildClientSchema} from 'graphql';
+import {getPath} from './utils.js';
 
-// const DEV = process.env.NODE_ENV === 'development';
-const DEV = true;
+const DEV = process.env.NODE_ENV === 'development';
 
 const sandboxId = DEV
   ? '5f05c6e7-5b7a-481f-8980-8358fe47f83d'
   : '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
-const googleAuthScopes = [
-  'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/youtube.force-ssl',
-  'https://www.googleapis.com/auth/userinfo.email',
-];
 
-const googleAuthParams = {
-  client_id: DEV
-    ? '724803268959-1vh888mcdelep2faonp6dmjci8o6gr3q.apps.googleusercontent.com'
-    : '724803268959-5grmngkut92velvb3m8f7h7igf5n0cra.apps.googleusercontent.com',
-  redirect_uri: DEV
-    ? 'http://serve.onegraph.dev:8082/oauth/google/finish'
-    : 'https://serve.onegraph.io/oauth/google/finish',
-  response_type: 'code',
-  scope: googleAuthScopes.join(' '),
-  access_type: 'offline',
-  state: sandboxId,
-};
-const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-Object.keys(googleAuthParams).forEach(k =>
-  googleAuthUrl.searchParams.append(k, googleAuthParams[k]),
-);
+const authUrl = service =>
+  new URL(
+    'http' +
+      (DEV ? '://serve.onegraph.dev:8082' : 's://serve.onegraph.io') +
+      '/oauth/start?service=' +
+      service +
+      '&app_id=' +
+      sandboxId,
+  );
 
 function windowParams() {
   const parameters = {};
@@ -59,7 +47,9 @@ function locationQuery(params) {
 }
 
 // const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
-const fetchURL = 'https://serve.onegraph.io';
+const fetchURL = DEV
+  ? 'http://serve.onegraph.dev:8082'
+  : 'https://serve.onegraph.io';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
@@ -70,7 +60,7 @@ function graphQLFetcher(graphQLParams) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(graphQLParams),
-    // credentials: 'include',
+    credentials: 'include',
   })
     .then(function(response) {
       return response.text();
@@ -111,6 +101,18 @@ let handleGQLExplorerUpdated = (editor, query) => {
   editor.setValue(prettyText);
 };
 
+let logInButton = (service, right, href) => (
+  <div style={{position: 'absolute', right: right}}>
+    <div className="topBar">
+      <div className="toolbar">
+        <a className="toolbar-button" href={href}>
+          {service}
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
 class App extends React.PureComponent {
   state: {
     query: string,
@@ -124,7 +126,11 @@ class App extends React.PureComponent {
     super(props);
     const params = windowParams();
     this.state = {
-      loggedIn: null,
+      githubLoggedIn: null,
+      googleLoggedIn: null,
+      stripeLoggedIn: null,
+      twitterLoggedIn: null,
+      sfdcLoggedIn: null,
       query: params.query ? decodeURIComponent(params.query) : '',
       showGraphitree: false,
       params,
@@ -133,12 +139,28 @@ class App extends React.PureComponent {
     this._params = params;
   }
   componentDidMount() {
-    graphQLFetcher({query: 'query { me { google { email } }}'}).then(x => {
-      if (x.data && x.data.me && x.data.me.google && x.data.me.google.email) {
-        this.setState({loggedIn: true});
-      } else {
-        this.setState({loggedIn: false});
-      }
+    graphQLFetcher({
+      query: `query {
+  me {
+    google {
+      email
+    }
+    twitter {
+      screen_name
+    }
+    github {
+      login
+    }
+  }
+}`,
+    }).then(x => {
+      this.setState({
+        googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
+        githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
+        sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
+        stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'account']),
+        twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screen_name']),
+      });
     });
     graphQLFetcher({query: introspectionQuery}).then(result => {
       if (result.data) {
@@ -218,35 +240,36 @@ class App extends React.PureComponent {
             right: '0px',
           }}
         >
-          {this.state.loggedIn === false
-            ? <div style={{position: 'absolute', right: 170}}>
-                <div className="topBar">
-                  <div className="toolbar">
-                    <a
-                      className="toolbar-button"
-                      onClick={event => {
-                        this.toggleGraphitree.bind(this)();
-                        event.preventDefault();
-                        return false;
-                      }}
-                    >
-                      Tree
-                    </a>
-                  </div>
-                </div>
+          <div style={{position: 'absolute', left: 312}}>
+            <div className="topBar">
+              <div className="toolbar">
+                <a
+                  className="toolbar-button"
+                  onClick={event => {
+                    this.toggleGraphitree.bind(this)();
+                    event.preventDefault();
+                    return false;
+                  }}
+                >
+                  Tree
+                </a>
               </div>
+            </div>
+          </div>
+
+          {this.state.googleLoggedIn === false
+            ? logInButton('Google', '85px', authUrl('google'))
             : null}
-          {this.state.loggedIn === false
-            ? <div style={{position: 'absolute', right: 85}}>
-                <div className="topBar">
-                  <div className="toolbar">
-                    <a className="toolbar-button" href={googleAuthUrl}>
-                      Log In
-                    </a>
-                  </div>
-                </div>
-              </div>
+          {this.state.githubLoggedIn === false
+            ? logInButton('GitHub', '170px', authUrl('github'))
             : null}
+          {this.state.stripeLoggedIn === false
+            ? logInButton('Stripe', '256px', authUrl('stripe'))
+            : null}
+          {this.state.twitterLoggedIn === false
+            ? logInButton('Twitter', '332px', authUrl('twitter'))
+            : null}
+
           {!!this.state.schema
             ? <GraphiQL
                 ref={c => (this.graphiql = c)}
