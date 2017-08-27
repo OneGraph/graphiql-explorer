@@ -59,7 +59,7 @@ function graphQLFetcher(graphQLParams) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Application-Id': '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
-      'auth-token': 'c6d28231-74e3-459a-9042-8a8f456ecf84',
+      'auth-token': '2bf7b30e-259e-44b4-b180-05df8f9dbd74',
     },
     body: JSON.stringify(graphQLParams),
     credentials: 'include',
