@@ -21,6 +21,8 @@ const authUrl = service =>
       sandboxId,
   );
 
+const applicationId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
+
 function windowParams() {
   const parameters = {};
   window.location.search.substr(1).split('&').forEach(function(entry) {
@@ -48,8 +50,8 @@ function locationQuery(params) {
 
 // const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
 const fetchURL = DEV
-  ? 'http://serve.onegraph.dev:8082/dynamic'
-  : 'https://serve.onegraph.io/dynamic';
+  ? 'http://serve.onegraph.dev:8082/dynamic?application_id=' + applicationId
+  : 'https://serve.onegraph.io/dynamic?application_id=' + applicationId;
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
@@ -58,7 +60,6 @@ function graphQLFetcher(graphQLParams) {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'Application-Id': '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
       'auth-token': '2bf7b30e-259e-44b4-b180-05df8f9dbd74',
     },
     body: JSON.stringify(graphQLParams),
