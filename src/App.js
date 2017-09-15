@@ -48,8 +48,8 @@ function locationQuery(params) {
 
 // const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
 const fetchURL = DEV
-  ? 'http://serve.onegraph.dev:8082/query'
-  : 'https://serve.onegraph.io/query';
+  ? 'http://serve.onegraph.dev:8082/dynamic'
+  : 'https://serve.onegraph.io/dynamic';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
