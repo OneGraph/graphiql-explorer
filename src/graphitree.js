@@ -22,14 +22,15 @@ var gqlOfQueryObj = function(obj, depth, output) {
   let keys = Object.keys(obj);
   let depthStr = new Array(depth + 1).join('  ');
   keys.forEach(key => {
-    let nextStr = typeof obj[key] === 'object'
-      ? depthStr +
+    let nextStr =
+      typeof obj[key] === 'object'
+        ? depthStr +
           key +
           ' {\n' +
           gqlOfQueryObj(obj[key], depth + 1, '') +
           depthStr +
           '}\n'
-      : depthStr + key + '\n';
+        : depthStr + key + '\n';
     output += nextStr;
   });
 
@@ -69,32 +70,30 @@ class TreeEntry extends React.Component {
     );
     return (
       <TreeView key={node.name + i} nodeLabel={label}>
-        {this.props.hasNode(this.props.path)
-          ? <div>
-              {fields &&
-                Array.prototype.slice
-                  .call(fields)
-                  .sort((a, b) => {
-                    if (a < b) return -1;
-                    if (a > b) return 1;
-                    return 0;
-                  })
-                  .map((field, i) => (
-                    <div className="info" key={field.name}>
-                      <TreeEntry
-                        node={field}
-                        depth={depth + 1}
-                        path={this.props.path.concat([field.name])}
-                        handleNodesUpdated={this.props.handleNodesUpdated}
-                        hasNode={this.props.hasNode}
-                        typeLookup={this.props.typeLookup}
-                      />
-                      {' '}
-                    </div>
-                  ))}
-
-            </div>
-          : null}
+        {this.props.hasNode(this.props.path) ? (
+          <div>
+            {fields &&
+              Array.prototype.slice
+                .call(fields)
+                .sort((a, b) => {
+                  if (a < b) return -1;
+                  if (a > b) return 1;
+                  return 0;
+                })
+                .map((field, i) => (
+                  <div className="info" key={field.name}>
+                    <TreeEntry
+                      node={field}
+                      depth={depth + 1}
+                      path={this.props.path.concat([field.name])}
+                      handleNodesUpdated={this.props.handleNodesUpdated}
+                      hasNode={this.props.hasNode}
+                      typeLookup={this.props.typeLookup}
+                    />{' '}
+                  </div>
+                ))}
+          </div>
+        ) : null}
       </TreeView>
     );
   }

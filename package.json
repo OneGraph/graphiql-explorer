@@ -8,13 +8,21 @@
     "react-dom": "^15.6.1",
     "react-treeview": "^0.4.7"
   },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "bracketSpacing": false,
+    "jsxBracketSameLine": true
+  },
   "devDependencies": {
+    "prettier": "^1.8.2",
     "react-scripts": "1.0.10"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prettier": "prettier --write \"src/**/*.js\""
   }
 }
