@@ -185,8 +185,10 @@ class Graphitree extends Component {
       type => (typeLookup[type.name] = type),
     );
 
+    const queryType = this.props.rawSchema.__schema.queryType.name;
+
     var queryTopLevel = this.props.rawSchema.__schema.types.filter(type => {
-      return type.name === 'query' && type.kind === 'OBJECT';
+      return type.name === queryType && type.kind === 'OBJECT';
       // return type.kind === 'OBJECT';
     })[0];
 
