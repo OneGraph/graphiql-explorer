@@ -15,7 +15,7 @@ const sandboxId = DEV
 const authUrl = service =>
   new URL(
     'http' +
-      (DEV ? '://serve.onegraph.dev:8082' : 's://serve.onegraph.io') +
+      (DEV ? '://serve.onegraph.dev:8082' : 's://serve.onegraph.com') +
       '/oauth/start?service=' +
       service +
       '&app_id=' +
@@ -55,7 +55,7 @@ function locationQuery(params) {
 // const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
 const fetchURL = DEV
   ? 'http://serve.onegraph.dev:8082/dynamic?application_id=' + applicationId
-  : 'https://serve.onegraph.io/dynamic?application_id=' + applicationId;
+  : 'https://serve.onegraph.com/dynamic?application_id=' + applicationId;
 
 const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
 const TREE_STORAGE_KEY = 'onegraph:showTree';
