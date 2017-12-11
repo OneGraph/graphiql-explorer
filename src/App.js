@@ -86,8 +86,11 @@ function graphQLFetcher(graphQLParams) {
 }
 
 function updateURL(params) {
-  window.history.replaceState(null, null, locationQuery(params));
-}
+  const queryParam = locationQuery(params);
+  if (queryParam.length < 15000) {
+    window.history.replaceState(null, null, queryParam);
+  }
+};
 
 let handleGQLExplorerUpdated = (editor, query) => {
   const {parse, print} = require('graphql');
