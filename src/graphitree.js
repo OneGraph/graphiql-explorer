@@ -60,7 +60,7 @@ class TreeEntry extends React.Component {
     const nodeType = this.props.typeLookup[typeName];
     const fields = nodeType && nodeType.fields;
     const label = (
-      <span className="node">
+      <span className="node" onClick={this.handleClick.bind(this, this.props.path)}>
         <input
           type="checkbox"
           onChange={this.handleClick.bind(this, this.props.path)}
