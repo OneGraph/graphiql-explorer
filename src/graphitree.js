@@ -56,22 +56,23 @@ class TreeEntry extends React.Component {
       }
       tmpNodeTypeInfo = tmpNodeTypeInfo.ofType;
     }
-
+    const isChecked = this.props.hasNode(this.props.path);
     const nodeType = this.props.typeLookup[typeName];
     const fields = nodeType && nodeType.fields;
     const label = (
       <span className="node" onClick={this.handleClick.bind(this, this.props.path)}>
         <input
-          type="checkbox"
-          onChange={this.handleClick.bind(this, this.props.path)}
+      type="checkbox"
+      checked={isChecked}
+      onChange={this.handleClick.bind(this, this.props.path)}
         />
         {node.name}
       </span>
     );
     return (
       <TreeView key={node.name + i} nodeLabel={label}>
-        {this.props.hasNode(this.props.path) ? (
-          <div>
+        {isChecked ? (
+            <div>
             {fields &&
               Array.prototype.slice
                 .call(fields)
