@@ -9,7 +9,7 @@ import {getPath} from './utils.js';
 const DEV = process.env.NODE_ENV === 'development';
 
 const sandboxId = DEV
-  ? '5f05c6e7-5b7a-481f-8980-8358fe47f83d'
+  ? '0b33e830-7cde-4b90-ad7e-2a39c57c0e11'
   : '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
 
 const authUrl = service =>
@@ -89,7 +89,7 @@ function updateURL(params) {
   if (queryParam.length < 15000) {
     window.history.replaceState(null, null, queryParam);
   }
-};
+}
 
 let handleGQLExplorerUpdated = (editor, query) => {
   const {parse, print} = require('graphql');
@@ -134,6 +134,7 @@ const meQuery = `
 class App extends React.PureComponent {
   state: {
     query: string,
+    variables: string,
     params: object,
     showGraphitree: boolean,
     rawSchema: object,
@@ -151,6 +152,7 @@ class App extends React.PureComponent {
       twitterLoggedIn: null,
       sfdcLoggedIn: null,
       query: params.query ? decodeURIComponent(params.query) : '',
+      variables: params.variables ? decodeURIComponent(params.variables) : '',
       showGraphitree: this._storage.get(TREE_STORAGE_KEY),
       params,
       selectedNodes: new Set([]),
@@ -293,7 +295,7 @@ class App extends React.PureComponent {
               onEditOperationName={this.onEditOperationName}
               query={this.state.query || ''}
               response={null}
-              variables={null}
+              variables={this.state.variables || ''}
               operationName={null}
               schema={this.state.schema}
             />
