@@ -141,6 +141,7 @@ class TreeTop extends React.Component {
           return (
             <TreeEntry
               node={node}
+              key={node.name + i}
               depth={0}
               path={[node.name]}
               selectedNodes={selectedNodes}

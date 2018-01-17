@@ -2,7 +2,8 @@ import React from 'react';
 import GraphiQL from 'graphiql';
 import StorageAPI from 'graphiql/dist/utility/StorageAPI';
 import 'graphiql/graphiql.css';
-import Graphitree from './graphitree.js';
+import Graphitree from './graphitree';
+import {defaultQuery} from './graphql';
 import {introspectionQuery, buildClientSchema} from 'graphql';
 import {getPath} from './utils.js';
 
@@ -100,17 +101,27 @@ let handleGQLExplorerUpdated = (editor, query) => {
   editor.setValue(prettyText);
 };
 
-let logInButton = (service, right, href) => (
-  <div style={{position: 'absolute', right: right}}>
-    <div className="topBar">
-      <div className="toolbar">
-        <a className="toolbar-button" href={href}>
-          {service}
-        </a>
-      </div>
-    </div>
-  </div>
-);
+let logInButton = (service, isSignedIn, href) => {
+  return (
+    <GraphiQL.MenuItem
+      label={(isSignedIn ? '\u2713 ' : '  ') + service}
+      disabled={isSignedIn}
+      title={service}
+      onSelect={event => {
+        // console.log is here to make the no-unused-expression error go away. What's the equivalent of ignore() in JS?
+        console.log(
+          isSignedIn
+            ? null
+            : window.open(
+                href,
+                '_blank',
+                'location=yes,height=570,width=520,scrollbars=yes,status=yes',
+              ),
+        );
+      }}
+    />
+  );
+};
 
 const meQuery = `
   query {
@@ -140,6 +151,7 @@ class App extends React.PureComponent {
     rawSchema: object,
     schema: object,
     selectedNodes: object,
+    queryResultMessage: string,
   };
   _storage = new StorageAPI();
   constructor(props) {
@@ -156,12 +168,23 @@ class App extends React.PureComponent {
       showGraphitree: this._storage.get(TREE_STORAGE_KEY),
       params,
       selectedNodes: new Set([]),
+      queryResultMessage: 'OneGraphiQL timing',
     };
     this._params = params;
   }
   _graphQLFetch = params => {
+    const startTs = Date.now();
     const showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
-    return graphQLFetcher({...params, showBetaSchema});
+    return graphQLFetcher({...params, showBetaSchema}).then(result => {
+      const queryResultMessage =
+        'OneGraphiQL timing: ' + ((Date.now() - startTs) | 0) + 'ms';
+      this.setState(oldState => {
+        return {
+          queryResultMessage,
+        };
+      });
+      return result;
+    });
   };
   componentDidMount() {
     this._graphQLFetch({query: meQuery}).then(x => {
@@ -257,35 +280,6 @@ class App extends React.PureComponent {
             position: 'absolute',
             right: '0px',
           }}>
-          <div style={{position: 'absolute', left: 312}}>
-            <div className="topBar">
-              <div className="toolbar">
-                <a
-                  className="toolbar-button"
-                  onClick={event => {
-                    this.toggleGraphitree.bind(this)();
-                    event.preventDefault();
-                    return false;
-                  }}>
-                  Tree
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {this.state.googleLoggedIn === false
-            ? logInButton('Google', '85px', authUrl('google'))
-            : null}
-          {this.state.githubLoggedIn === false
-            ? logInButton('GitHub', '170px', authUrl('github'))
-            : null}
-          {this.state.stripeLoggedIn === false
-            ? logInButton('Stripe', '256px', authUrl('stripe'))
-            : null}
-          {this.state.twitterLoggedIn === false
-            ? logInButton('Twitter', '332px', authUrl('twitter'))
-            : null}
-
           {!!this.state.schema ? (
             <GraphiQL
               ref={c => (this.graphiql = c)}
@@ -293,12 +287,52 @@ class App extends React.PureComponent {
               onEditQuery={this.onEditQuery}
               onEditVariables={this.onEditVariables}
               onEditOperationName={this.onEditOperationName}
-              query={this.state.query || ''}
+              defaultQuery={this.state.query || defaultQuery}
               response={null}
               variables={this.state.variables || ''}
               operationName={null}
-              schema={this.state.schema}
-            />
+              schema={this.state.schema}>
+              <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
+              <GraphiQL.Toolbar>
+                <GraphiQL.Button
+                  onClick={this.handleClickPrettifyButton}
+                  label="Prettify"
+                  title="Prettify Query (Shift-Ctrl-P)"
+                />
+                <GraphiQL.Button
+                  onClick={event => {
+                    this.toggleGraphitree.bind(this)();
+                    event.preventDefault();
+                    return false;
+                  }}
+                  label="Tree"
+                  title="Toggle Tree"
+                />
+                <GraphiQL.Menu label="Authentication" title="Authentication">
+                  {logInButton(
+                    'Stripe',
+                    this.state.stripeLoggedIn,
+                    authUrl('stripe'),
+                  )}
+                  {logInButton(
+                    'GitHub',
+                    this.state.githubLoggedIn,
+                    authUrl('github'),
+                  )}
+                  {logInButton(
+                    'Twitter',
+                    this.state.twitterLoggedIn,
+                    authUrl('twitter'),
+                  )}
+                  {logInButton(
+                    'Google',
+                    this.state.googleLoggedIn,
+                    authUrl('googl'),
+                  )}
+                </GraphiQL.Menu>
+              </GraphiQL.Toolbar>
+              <GraphiQL.Footer>{this.state.queryResultMessage}</GraphiQL.Footer>
+            </GraphiQL>
           ) : null}
         </div>
       </div>
