@@ -37,7 +37,7 @@ function locationQuery(params) {
 }
 
 const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
-const TREE_STORAGE_KEY = 'onegraph:showTree';
+const EXPLORER_STORAGE_KEY = 'onegraph:showExplorer';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
@@ -125,7 +125,7 @@ class App extends React.PureComponent {
     query: string,
     variables: string,
     params: object,
-    showGraphitree: boolean,
+    explorerIsOpen: boolean,
     rawSchema: object,
     schema: object,
     selectedNodes: object,
@@ -143,7 +143,7 @@ class App extends React.PureComponent {
       sfdcLoggedIn: null,
       query: params.query ? decodeURIComponent(params.query) : '',
       variables: params.variables ? decodeURIComponent(params.variables) : '',
-      showGraphitree: this._storage.get(TREE_STORAGE_KEY),
+      explorerIsOpen: this._storage.get(EXPLORER_STORAGE_KEY),
       params,
       selectedNodes: new Set([]),
       queryResultMessage: 'OneGraphiQL timing',
@@ -214,21 +214,22 @@ class App extends React.PureComponent {
   onEditOperationName = newOperationName => {
     this.setParam('operationName', newOperationName);
   };
-  toggleGraphitree = () => {
+  toggleExplorer = () => {
     this.setState(
       currentState => {
         return {
-          showGraphitree: !currentState.showGraphitree,
+          explorerIsOpen: !currentState.explorerIsOpen,
         };
       },
-      args => this._storage.set(TREE_STORAGE_KEY, this.state.showGraphitree),
+      args =>
+        this._storage.set(EXPLORER_STORAGE_KEY, this.state.explorerIsOpen),
     );
   };
   render() {
     const showGraphQLSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     return (
       <div>
-        {this.state.showGraphitree && !!this.state.rawSchema ? (
+        {this.state.explorerIsOpen && !!this.state.rawSchema ? (
           <div
             className="graphitree-container"
             style={{
@@ -255,7 +256,7 @@ class App extends React.PureComponent {
           className="graphiql-container"
           style={{
             height: '100vh',
-            width: this.state.showGraphitree ? '90%' : '100%',
+            width: this.state.explorerIsOpen ? '90%' : '100%',
             position: 'absolute',
             right: '0px',
           }}>
@@ -279,13 +280,18 @@ class App extends React.PureComponent {
                   title="Prettify Query (Shift-Ctrl-P)"
                 />
                 <GraphiQL.Button
+                  onClick={() => this.graphiql.handleToggleHistory()}
+                  title="Show History"
+                  label="History"
+                />
+                <GraphiQL.Button
                   onClick={event => {
-                    this.toggleGraphitree.bind(this)();
+                    this.toggleExplorer.bind(this)();
                     event.preventDefault();
                     return false;
                   }}
-                  label="Tree"
-                  title="Toggle Tree"
+                  label="Explorer"
+                  title="Toggle Explorer"
                 />
                 <GraphiQL.Menu label="Authentication" title="Authentication">
                   {showGraphQLSchema
