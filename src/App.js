@@ -2,27 +2,10 @@ import React from 'react';
 import GraphiQL from 'graphiql';
 import StorageAPI from 'graphiql/dist/utility/StorageAPI';
 import 'graphiql/graphiql.css';
-import Graphitree from './graphitree.js';
+import Graphitree from './graphitree';
 import {introspectionQuery, buildClientSchema} from 'graphql';
-import {getPath} from './utils.js';
-
-const DEV = process.env.NODE_ENV === 'development';
-
-const sandboxId = DEV
-  ? '0b33e830-7cde-4b90-ad7e-2a39c57c0e11'
-  : '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
-
-const authUrl = service =>
-  new URL(
-    'http' +
-      (DEV ? '://serve.onegraph.dev:8082' : 's://serve.onegraph.com') +
-      '/oauth/start?service=' +
-      service +
-      '&app_id=' +
-      sandboxId,
-  );
-
-const applicationId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
+import {getPath} from './utils';
+import Config from './Config';
 
 function windowParams() {
   const parameters = {};
@@ -52,17 +35,12 @@ function locationQuery(params) {
   );
 }
 
-// const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
-const fetchURL = DEV
-  ? 'http://serve.onegraph.dev:8082/dynamic?application_id=' + applicationId
-  : 'https://serve.onegraph.com/dynamic?application_id=' + applicationId;
-
 const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
 const TREE_STORAGE_KEY = 'onegraph:showTree';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
-  return fetch(fetchURL, {
+  return fetch(Config.fetchUrl, {
     method: 'post',
     headers: {
       Accept: 'application/json',
@@ -274,16 +252,16 @@ class App extends React.PureComponent {
           </div>
 
           {this.state.googleLoggedIn === false
-            ? logInButton('Google', '85px', authUrl('google'))
+            ? logInButton('Google', '85px', Config.authUrl('google'))
             : null}
           {this.state.githubLoggedIn === false
-            ? logInButton('GitHub', '170px', authUrl('github'))
+            ? logInButton('GitHub', '170px', Config.authUrl('github'))
             : null}
           {this.state.stripeLoggedIn === false
-            ? logInButton('Stripe', '256px', authUrl('stripe'))
+            ? logInButton('Stripe', '256px', Config.authUrl('stripe'))
             : null}
           {this.state.twitterLoggedIn === false
-            ? logInButton('Twitter', '332px', authUrl('twitter'))
+            ? logInButton('Twitter', '332px', Config.authUrl('twitter'))
             : null}
 
           {!!this.state.schema ? (
