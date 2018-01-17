@@ -5,25 +5,8 @@ import 'graphiql/graphiql.css';
 import Graphitree from './graphitree';
 import {defaultQuery} from './graphql';
 import {introspectionQuery, buildClientSchema} from 'graphql';
-import {getPath} from './utils.js';
-
-const DEV = process.env.NODE_ENV === 'development';
-
-const sandboxId = DEV
-  ? '0b33e830-7cde-4b90-ad7e-2a39c57c0e11'
-  : '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
-
-const authUrl = service =>
-  new URL(
-    'http' +
-      (DEV ? '://serve.onegraph.dev:8082' : 's://serve.onegraph.com') +
-      '/oauth/start?service=' +
-      service +
-      '&app_id=' +
-      sandboxId,
-  );
-
-const applicationId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
+import {getPath} from './utils';
+import Config from './Config';
 
 function windowParams() {
   const parameters = {};
@@ -53,17 +36,12 @@ function locationQuery(params) {
   );
 }
 
-// const fetchURL = 'http://serve.onegraph.dev:8082/graphql';
-const fetchURL = DEV
-  ? 'http://serve.onegraph.dev:8082/dynamic?application_id=' + applicationId
-  : 'https://serve.onegraph.com/dynamic?application_id=' + applicationId;
-
 const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
 const TREE_STORAGE_KEY = 'onegraph:showTree';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(graphQLParams) {
-  return fetch(fetchURL, {
+  return fetch(Config.fetchUrl, {
     method: 'post',
     headers: {
       Accept: 'application/json',
@@ -312,22 +290,22 @@ class App extends React.PureComponent {
                   {logInButton(
                     'Stripe',
                     this.state.stripeLoggedIn,
-                    authUrl('stripe'),
+                    Config.authUrl('stripe'),
                   )}
                   {logInButton(
                     'GitHub',
                     this.state.githubLoggedIn,
-                    authUrl('github'),
+                    Config.authUrl('github'),
                   )}
                   {logInButton(
                     'Twitter',
                     this.state.twitterLoggedIn,
-                    authUrl('twitter'),
+                    Config.authUrl('twitter'),
                   )}
                   {logInButton(
                     'Google',
                     this.state.googleLoggedIn,
-                    authUrl('googl'),
+                    Config.authUrl('google'),
                   )}
                 </GraphiQL.Menu>
               </GraphiQL.Toolbar>
