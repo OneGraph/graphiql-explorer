@@ -1,5 +1,14 @@
 const defaultQuery = `{
   me {
+    github {
+      avatarUrl
+      login
+      email
+    }
+    oneGraph {
+      fullName
+      email
+    }
     stripe {
       displayName
       businessUrl
@@ -8,20 +17,6 @@ const defaultQuery = `{
     twitter {
       screenName
       name
-    }
-    oneGraph {
-      fullName
-      email
-    }
-    google {
-      familyName
-      givenName
-      email
-    }
-    github {
-      avatarUrl
-      login
-      email
     }
   }
 }`;

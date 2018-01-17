@@ -225,6 +225,7 @@ class App extends React.PureComponent {
     );
   };
   render() {
+    const showGraphQLSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     return (
       <div>
         {this.state.showGraphitree && !!this.state.rawSchema ? (
@@ -287,26 +288,33 @@ class App extends React.PureComponent {
                   title="Toggle Tree"
                 />
                 <GraphiQL.Menu label="Authentication" title="Authentication">
+                  {showGraphQLSchema
+                    ? logInButton(
+                        'GitHub',
+                        this.state.githubLoggedIn,
+                        Config.authUrl('github'),
+                      )
+                    : null}
+                  {showGraphQLSchema
+                    ? logInButton(
+                        'Google',
+                        this.state.googleLoggedIn,
+                        Config.authUrl('google'),
+                      )
+                    : null}
                   {logInButton(
                     'Stripe',
                     this.state.stripeLoggedIn,
                     Config.authUrl('stripe'),
                   )}
-                  {logInButton(
-                    'GitHub',
-                    this.state.githubLoggedIn,
-                    Config.authUrl('github'),
-                  )}
-                  {logInButton(
-                    'Twitter',
-                    this.state.twitterLoggedIn,
-                    Config.authUrl('twitter'),
-                  )}
-                  {logInButton(
-                    'Google',
-                    this.state.googleLoggedIn,
-                    Config.authUrl('google'),
-                  )}
+
+                  {showGraphQLSchema
+                    ? logInButton(
+                        'Twitter',
+                        this.state.twitterLoggedIn,
+                        Config.authUrl('twitter'),
+                      )
+                    : null}
                 </GraphiQL.Menu>
               </GraphiQL.Toolbar>
               <GraphiQL.Footer>{this.state.queryResultMessage}</GraphiQL.Footer>
