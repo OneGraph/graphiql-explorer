@@ -3,7 +3,7 @@ import GraphiQL from 'graphiql';
 import StorageAPI from 'graphiql/dist/utility/StorageAPI';
 import 'graphiql/graphiql.css';
 import Graphitree from './graphitree';
-import {defaultQuery} from './graphql';
+import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
 import {getPath} from './utils';
 import Config from './Config';
