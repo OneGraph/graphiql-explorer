@@ -7,6 +7,9 @@ import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
 import {getPath} from './utils';
 import Config from './Config';
+import OneGraphAuth from 'onegraph-auth';
+
+import type {Service} from 'Auth';
 
 function windowParams() {
   const parameters = {};
@@ -70,36 +73,47 @@ function updateURL(params) {
   }
 }
 
-let handleGQLExplorerUpdated = (editor, query) => {
+function handleGQLExplorerUpdated(editor, query) {
   const {parse, print} = require('graphql');
   var prettyText = query;
   try {
     prettyText = print(parse(query));
   } catch (e) {}
   editor.setValue(prettyText);
-};
+}
 
-let logInButton = (service, isSignedIn, href) => {
-  return (
-    <GraphiQL.MenuItem
-      label={(isSignedIn ? '\u2713 ' : '  ') + service}
-      disabled={isSignedIn}
-      title={service}
-      onSelect={event => {
-        // console.log is here to make the no-unused-expression error go away. What's the equivalent of ignore() in JS?
-        console.log(
-          isSignedIn
-            ? null
-            : window.open(
-                href,
-                '_blank',
-                'location=yes,height=570,width=520,scrollbars=yes,status=yes',
-              ),
-        );
-      }}
-    />
-  );
+type LoginButtonProps = {
+  oneGraphAuth: OneGraphAuth,
+  onAuthResponse: (response: AuthResponse) => void,
+  isSignedIn: boolean,
 };
+class LoginButton extends React.Component<LoginButtonProps> {
+  state = {loading: false};
+  _onSelect = async (): Promise<void> => {
+    const {oneGraphAuth, onAuthResponse} = this.props;
+    try {
+      this.setState({loading: true});
+      const authResponse = await oneGraphAuth.login();
+      onAuthResponse(authResponse);
+      this.setState({loading: false});
+    } catch (e) {
+      console.error(e);
+      this.setState({loading: false});
+    }
+  };
+  render() {
+    const {oneGraphAuth, isSignedIn} = this.props;
+    const serviceName = oneGraphAuth.friendlyServiceName;
+    return (
+      <GraphiQL.MenuItem
+        label={(isSignedIn ? '\u2713 ' : '  ') + serviceName}
+        disabled={this.state.loading || isSignedIn}
+        title={serviceName}
+        onSelect={this._onSelect}
+      />
+    );
+  }
+}
 
 const meQuery = `
   query {
@@ -120,6 +134,14 @@ const meQuery = `
   }
 `;
 
+function makeOneGraphAuth(service: Service): OneGraphAuth {
+  return new OneGraphAuth({
+    oneGraphOrigin: Config.oneGraphOrigin,
+    appId: Config.applicationId,
+    service,
+  });
+}
+
 class App extends React.PureComponent {
   state: {
     query: string,
@@ -132,6 +154,10 @@ class App extends React.PureComponent {
     queryResultMessage: string,
   };
   _storage = new StorageAPI();
+  _githubOneGraphAuth = makeOneGraphAuth('github');
+  _googleOneGraphAuth = makeOneGraphAuth('google');
+  _stripeOneGraphAuth = makeOneGraphAuth('stripe');
+  _twitterOneGraphAuth = makeOneGraphAuth('twitter');
   constructor(props) {
     super(props);
     const params = windowParams();
@@ -164,7 +190,8 @@ class App extends React.PureComponent {
       return result;
     });
   };
-  componentDidMount() {
+
+  _fetchAuth = () => {
     this._graphQLFetch({query: meQuery}).then(x => {
       this.setState({
         googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
@@ -174,6 +201,9 @@ class App extends React.PureComponent {
         twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screenName']),
       });
     });
+  };
+  componentDidMount() {
+    this._fetchAuth();
     this._graphQLFetch({query: introspectionQuery}).then(result => {
       if (result.data) {
         this.setState(currentState => {
@@ -294,33 +324,32 @@ class App extends React.PureComponent {
                   title="Toggle Explorer"
                 />
                 <GraphiQL.Menu label="Authentication" title="Authentication">
-                  {showGraphQLSchema
-                    ? logInButton(
-                        'GitHub',
-                        this.state.githubLoggedIn,
-                        Config.authUrl('github'),
-                      )
-                    : null}
-                  {showGraphQLSchema
-                    ? logInButton(
-                        'Google',
-                        this.state.googleLoggedIn,
-                        Config.authUrl('google'),
-                      )
-                    : null}
-                  {logInButton(
-                    'Stripe',
-                    this.state.stripeLoggedIn,
-                    Config.authUrl('stripe'),
-                  )}
-
-                  {showGraphQLSchema
-                    ? logInButton(
-                        'Twitter',
-                        this.state.twitterLoggedIn,
-                        Config.authUrl('twitter'),
-                      )
-                    : null}
+                  {showGraphQLSchema ? (
+                    <LoginButton
+                      oneGraphAuth={this._githubOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.githubLoggedIn}
+                    />
+                  ) : null}
+                  {showGraphQLSchema ? (
+                    <LoginButton
+                      oneGraphAuth={this._googleOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.googleLoggedIn}
+                    />
+                  ) : null}
+                  <LoginButton
+                    oneGraphAuth={this._stripeOneGraphAuth}
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.stripeLoggedIn}
+                  />
+                  {showGraphQLSchema ? (
+                    <LoginButton
+                      oneGraphAuth={this._twitterOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.twitterLoggedIn}
+                    />
+                  ) : null}
                 </GraphiQL.Menu>
               </GraphiQL.Toolbar>
               <GraphiQL.Footer>{this.state.queryResultMessage}</GraphiQL.Footer>

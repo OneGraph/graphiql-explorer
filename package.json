@@ -6,7 +6,8 @@
     "graphiql": "^0.11.2",
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
-    "react-treeview": "^0.4.7"
+    "react-treeview": "^0.4.7",
+    "onegraph-auth": "0.1.12"
   },
   "prettier": {
     "singleQuote": true,

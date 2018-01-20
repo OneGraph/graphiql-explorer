@@ -31,6 +31,7 @@ function authUrl(service) {
 const config = {
   isDev: DEV,
   applicationId,
+  oneGraphOrigin: baseUrl.toString(),
   fetchUrl: fetchUrl.toString(),
   authUrl,
 };
