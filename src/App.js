@@ -267,7 +267,7 @@ class App extends React.PureComponent {
               onEditQuery={this.onEditQuery}
               onEditVariables={this.onEditVariables}
               onEditOperationName={this.onEditOperationName}
-              defaultQuery={this.state.query || defaultQuery}
+              query={this.state.query || defaultQuery}
               response={null}
               variables={this.state.variables || ''}
               operationName={null}
