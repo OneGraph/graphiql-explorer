@@ -12,7 +12,8 @@ if (DEV) {
   if (!DEV_SSL) {
     baseUrl.protocol = 'http:'
   }
-  baseUrl.hostname = 'serve.onegraph.dev:8082'
+  baseUrl.hostname = 'serve.onegraph.dev';
+  baseUrl.port = 8082;
 }
 
 const fetchUrl = new URL(baseUrl.toString());
