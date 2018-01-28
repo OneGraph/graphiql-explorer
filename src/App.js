@@ -158,16 +158,20 @@ class App extends React.PureComponent {
   _googleOneGraphAuth = makeOneGraphAuth('google');
   _stripeOneGraphAuth = makeOneGraphAuth('stripe');
   _twitterOneGraphAuth = makeOneGraphAuth('twitter');
+  _showBetaSchema: boolean;
   constructor(props) {
     super(props);
     const params = windowParams();
+    this._showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     this.state = {
       githubLoggedIn: null,
       googleLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
       sfdcLoggedIn: null,
-      query: params.query ? decodeURIComponent(params.query) : '',
+      query: params.query
+        ? decodeURIComponent(params.query)
+        : defaultQuery(this._showBetaSchema),
       variables: params.variables ? decodeURIComponent(params.variables) : '',
       explorerIsOpen: this._storage.get(EXPLORER_STORAGE_KEY),
       params,
@@ -178,8 +182,10 @@ class App extends React.PureComponent {
   }
   _graphQLFetch = params => {
     const startTs = Date.now();
-    const showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
-    return graphQLFetcher({...params, showBetaSchema}).then(result => {
+    return graphQLFetcher({
+      ...params,
+      showBetaSchema: this._showBetaSchema,
+    }).then(result => {
       const queryResultMessage =
         'OneGraphiQL timing: ' + ((Date.now() - startTs) | 0) + 'ms';
       this.setState(oldState => {
@@ -297,9 +303,9 @@ class App extends React.PureComponent {
               onEditQuery={this.onEditQuery}
               onEditVariables={this.onEditVariables}
               onEditOperationName={this.onEditOperationName}
-              query={this.state.query || defaultQuery}
+              query={this.state.query}
               response={null}
-              variables={this.state.variables || ''}
+              variables={this.state.variables}
               operationName={null}
               schema={this.state.schema}>
               <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>

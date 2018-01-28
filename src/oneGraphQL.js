@@ -1,4 +1,6 @@
-const defaultQuery = `{
+function defaultQuery(showBeta) {
+  return showBeta
+    ? `{
   me {
     github {
       avatarUrl
@@ -19,6 +21,20 @@ const defaultQuery = `{
       name
     }
   }
+}`
+    : `{
+  me {
+    oneGraph {
+      fullName
+      email
+    }
+    stripe {
+      displayName
+      businessUrl
+      email
+    }
+  }
 }`;
+}
 
 export {defaultQuery};

@@ -10,7 +10,7 @@ const baseUrl = new URL('https://serve.onegraph.com');
 
 if (DEV) {
   if (!DEV_SSL) {
-    baseUrl.protocol = 'http:'
+    baseUrl.protocol = 'http:';
   }
   baseUrl.hostname = 'serve.onegraph.test';
   baseUrl.port = 8082;
