@@ -1,3 +1,5 @@
+// @flow
+
 import React from 'react';
 import GraphiQL from 'graphiql';
 import StorageAPI from 'graphiql/dist/utility/StorageAPI';
@@ -9,7 +11,7 @@ import {getPath} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 
-import type {Service} from 'Auth';
+import type {AuthResponse, Service} from 'onegraph-auth';
 
 function windowParams() {
   const parameters = {};
@@ -43,8 +45,14 @@ const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
 const EXPLORER_STORAGE_KEY = 'onegraph:showExplorer';
 
 // Defines a GraphQL fetcher using the fetch API.
-function graphQLFetcher(graphQLParams) {
-  return fetch(Config.fetchUrl, {
+function graphQLFetcher(
+  serveUrl: string,
+  appId: string,
+  graphQLParams: Object,
+): Promise<string> {
+  const url = new URL(serveUrl);
+  url.searchParams.set('application_id', appId);
+  return fetch(url.toString(), {
     method: 'post',
     headers: {
       Accept: 'application/json',
@@ -85,9 +93,13 @@ function handleGQLExplorerUpdated(editor, query) {
 type LoginButtonProps = {
   oneGraphAuth: OneGraphAuth,
   onAuthResponse: (response: AuthResponse) => void,
-  isSignedIn: boolean,
+  isSignedIn: ?boolean,
 };
-class LoginButton extends React.Component<LoginButtonProps> {
+
+class LoginButton extends React.Component<
+  LoginButtonProps,
+  {loading: boolean},
+> {
   state = {loading: false};
   _onSelect = async (): Promise<void> => {
     const {oneGraphAuth, onAuthResponse} = this.props;
@@ -130,6 +142,20 @@ const meQuery = `
       stripe {
         id
       }
+      oneGraph {
+        id
+      }
+    }
+  }
+`;
+
+const appsQuery = `
+  query {
+    oneGraph {
+      apps {
+        name
+        id
+      }
     }
   }
 `;
@@ -137,29 +163,46 @@ const meQuery = `
 function makeOneGraphAuth(service: Service): OneGraphAuth {
   return new OneGraphAuth({
     oneGraphOrigin: Config.oneGraphOrigin,
-    appId: Config.applicationId,
+    appId: Config.appId,
     service,
   });
 }
 
-class App extends React.PureComponent {
-  state: {
-    query: string,
-    variables: string,
-    params: object,
-    explorerIsOpen: boolean,
-    rawSchema: object,
-    schema: object,
-    selectedNodes: object,
-    queryResultMessage: string,
-  };
+type Props = {};
+type State = {
+  apps: Array<{id: string, name: string}>,
+  query: string,
+  variables: string,
+  params: Object,
+  explorerIsOpen: boolean,
+  rawSchema: ?Object,
+  schema: ?Object,
+  selectedNodes: Object,
+  queryResultMessage: string,
+  onegraphLoggedIn: ?boolean,
+  githubLoggedIn: ?boolean,
+  googleLoggedIn: ?boolean,
+  stripeLoggedIn: ?boolean,
+  twitterLoggedIn: ?boolean,
+  sfdcLoggedIn: ?boolean,
+  activeApp: {id: string, name: string},
+};
+
+const DEFAULT_APP = {
+  name: 'onegraphiql',
+  id: Config.appId,
+};
+
+class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
-  _githubOneGraphAuth = makeOneGraphAuth('github');
-  _googleOneGraphAuth = makeOneGraphAuth('google');
-  _stripeOneGraphAuth = makeOneGraphAuth('stripe');
-  _twitterOneGraphAuth = makeOneGraphAuth('twitter');
+  _githubOneGraphAuth: OneGraphAuth = makeOneGraphAuth('github');
+  _googleOneGraphAuth: OneGraphAuth = makeOneGraphAuth('google');
+  _stripeOneGraphAuth: OneGraphAuth = makeOneGraphAuth('stripe');
+  _twitterOneGraphAuth: OneGraphAuth = makeOneGraphAuth('twitter');
   _showBetaSchema: boolean;
-  constructor(props) {
+  _params: Object;
+  graphiql: GraphiQL;
+  constructor(props: Props) {
     super(props);
     const params = windowParams();
     this._showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
@@ -168,6 +211,7 @@ class App extends React.PureComponent {
       googleLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
+      onegraphLoggedIn: null,
       sfdcLoggedIn: null,
       query: params.query
         ? decodeURIComponent(params.query)
@@ -176,22 +220,27 @@ class App extends React.PureComponent {
       explorerIsOpen: this._storage.get(EXPLORER_STORAGE_KEY),
       params,
       selectedNodes: new Set([]),
-      queryResultMessage: 'OneGraphiQL timing',
+      queryResultMessage: 'Request time: -ms',
+      rawSchema: null,
+      schema: null,
+      apps: [DEFAULT_APP],
+      activeApp: DEFAULT_APP,
     };
     this._params = params;
   }
-  _graphQLFetch = params => {
-    const startTs = Date.now();
-    return graphQLFetcher({
+  _graphQLFetch = (params: Object): Object => {
+    return graphQLFetcher(Config.fetchUrl, this.state.activeApp.id, {
       ...params,
       showBetaSchema: this._showBetaSchema,
-    }).then(result => {
-      const queryResultMessage =
-        'OneGraphiQL timing: ' + ((Date.now() - startTs) | 0) + 'ms';
-      this.setState(oldState => {
-        return {
-          queryResultMessage,
-        };
+    });
+  };
+
+  _graphiqlFetch = (params: Object): Object => {
+    const startTs = Date.now();
+    return this._graphQLFetch(params).then(result => {
+      this.setState({
+        queryResultMessage:
+          'Request time: ' + ((Date.now() - startTs) | 0) + 'ms',
       });
       return result;
     });
@@ -205,11 +254,21 @@ class App extends React.PureComponent {
         sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
         stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'id']),
         twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screenName']),
+        onegraphLoggedIn: !!getPath(x, ['data', 'me', 'oneGraph', 'id']),
       });
     });
   };
-  componentDidMount() {
+  _fetchApps = () => {
+    this._graphQLFetch({query: appsQuery}).then(data => {
+      this.setState({
+        apps: [DEFAULT_APP].concat(getPath(data, ['data', 'oneGraph', 'apps'])),
+      });
+    });
+  };
+  _setupForNewApp = () => {
     this._fetchAuth();
+  };
+  componentDidMount() {
     this._graphQLFetch({query: introspectionQuery}).then(result => {
       if (result.data) {
         this.setState(currentState => {
@@ -221,11 +280,21 @@ class App extends React.PureComponent {
       }
     });
     document.addEventListener('keydown', this._keyboardEventHandler);
+    this._fetchApps();
+    this._setupForNewApp();
   }
+
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    if (this.state.activeApp.id !== prevState.activeApp.id) {
+      this._setupForNewApp();
+    }
+  }
+
   componentWillUnmount() {
     document.removeEventListener('keydown', this._keyboardEventHandler);
   }
-  _keyboardEventHandler = event => {
+
+  _keyboardEventHandler = (event: KeyboardEvent) => {
     if (event.ctrlKey && event.altKey && event.keyCode === 66) {
       this._storage.set(
         BETA_SCHEMA_STORAGE_KEY,
@@ -234,20 +303,20 @@ class App extends React.PureComponent {
       window.location = window.location;
     }
   };
-  setParam = (param, value) => {
+  setParam = (param: string, value: string) => {
     this._params[param] = value;
     updateURL(this._params);
   };
-  onEditQuery = newQuery => {
+  onEditQuery = (newQuery: string) => {
     this.setState({
       query: newQuery,
     });
     this.setParam('query', newQuery);
   };
-  onEditVariables = newVariables => {
+  onEditVariables = (newVariables: string) => {
     this.setParam('variables', newVariables);
   };
-  onEditOperationName = newOperationName => {
+  onEditOperationName = (newOperationName: string) => {
     this.setParam('operationName', newOperationName);
   };
   toggleExplorer = () => {
@@ -259,6 +328,30 @@ class App extends React.PureComponent {
       },
       args =>
         this._storage.set(EXPLORER_STORAGE_KEY, this.state.explorerIsOpen),
+    );
+  };
+  _appSelector = () => {
+    const {activeApp, apps} = this.state;
+    return (
+      <GraphiQL.Menu
+        label={activeApp.name}
+        title="Choose the OneGraph app you want to use">
+        {apps.map(app => (
+          <GraphiQL.MenuItem
+            key={app.id}
+            label={`${activeApp.id === app.id ? '\u2713 ' : ''}${app.name}`}
+            title={`${app.id}`}
+            onSelect={() => this.setState({activeApp: app})}
+          />
+        ))}
+        {apps.length === 1 && apps[0] === DEFAULT_APP ? (
+          <GraphiQL.MenuItem
+            label="Create an app"
+            title="Go to OneGraph to create a new app"
+            onSelect={() => window.open('https://dash.onegraph.com')}
+          />
+        ) : null}
+      </GraphiQL.Menu>
     );
   };
   render() {
@@ -299,7 +392,7 @@ class App extends React.PureComponent {
           {!!this.state.schema ? (
             <GraphiQL
               ref={c => (this.graphiql = c)}
-              fetcher={this._graphQLFetch}
+              fetcher={this._graphiqlFetch}
               onEditQuery={this.onEditQuery}
               onEditVariables={this.onEditVariables}
               onEditOperationName={this.onEditOperationName}
@@ -311,7 +404,7 @@ class App extends React.PureComponent {
               <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
               <GraphiQL.Toolbar>
                 <GraphiQL.Button
-                  onClick={this.handleClickPrettifyButton}
+                  onClick={() => this.graphiql.handlePrettifyQuery()}
                   label="Prettify"
                   title="Prettify Query (Shift-Ctrl-P)"
                 />
@@ -357,6 +450,7 @@ class App extends React.PureComponent {
                     />
                   ) : null}
                 </GraphiQL.Menu>
+                {this._appSelector()}
               </GraphiQL.Toolbar>
               <GraphiQL.Footer>{this.state.queryResultMessage}</GraphiQL.Footer>
             </GraphiQL>

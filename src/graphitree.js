@@ -164,15 +164,12 @@ class Graphitree extends Component {
     // Delete any key that starts with this path
     window.sn = selectedNodes;
     var helper = () => {
-      console.log('helper called for ', path);
       selectedNodes.delete(path);
       Array.from(selectedNodes).forEach(value => {
-        console.log('\t', path, value, value.startsWith(path + '||'));
         if (value.startsWith(path + '||')) deleteList.push(value);
       });
       deleteList.forEach(key => selectedNodes.delete(key));
     };
-    console.log('\t', path, selectedNodes.has(path));
     selectedNodes.has(path) ? helper() : selectedNodes.add(path);
     this.forceUpdate();
     this.props.onQueryChange(buildGQLQuery(this.props.selectedNodes));
@@ -195,9 +192,6 @@ class Graphitree extends Component {
       return type.name === queryType && type.kind === 'OBJECT';
       // return type.kind === 'OBJECT';
     })[0];
-
-    console.log('queryTopLevel:', queryTopLevel);
-    console.log('queryTopLevel:', this.props.rawSchema);
 
     let dataSource = queryTopLevel.fields;
 
