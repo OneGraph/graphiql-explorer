@@ -1,0 +1,63 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: node:9.5.0-stretch
+    environment:
+      - TERM: dumb
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: 'Install Dependencies'
+          command: yarn
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: 'Build'
+          command: yarn build
+      - run:
+          name: 'Hack for firebase routing'
+          command: 'cp build/index.html build/404.html'
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - build
+            - .firebaserc
+            - firebase.json
+
+  deploy:
+    docker:
+      - image: node:9.5.0-stretch
+    environment:
+      - TERM: dumb
+    steps:
+      - attach_workspace:
+          at: ./
+      - restore_cache:
+          key: deploy-cache-v2
+      - run:
+          name: 'Install Dependencies'
+          command: yarn add firebase-tools
+      - save_cache:
+          key: deploy-cache-v2
+          paths:
+            - node_modules
+      - run:
+          name: 'Deploy to Firebase'
+          command: node_modules/firebase-tools/bin/firebase deploy --token "$FIREBASE_TOKEN"
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
