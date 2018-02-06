@@ -1,8 +1,9 @@
+// @flow
 const DEV = process.env.NODE_ENV === 'development';
 
 const DEV_SSL = process.env.REACT_APP_DEV_SSL === 'true';
 
-const applicationId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
+const appId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
 
 const sandboxId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
 
@@ -13,14 +14,13 @@ if (DEV) {
     baseUrl.protocol = 'http:';
   }
   baseUrl.hostname = 'serve.onegraph.test';
-  baseUrl.port = 8082;
+  baseUrl.port = '8082';
 }
 
 const fetchUrl = new URL(baseUrl.toString());
 fetchUrl.pathname = '/dynamic';
-fetchUrl.searchParams.append('application_id', applicationId);
 
-function authUrl(service) {
+function authUrl(service: string): string {
   const url = new URL(baseUrl.toString());
   url.pathname = '/oauth/start';
   url.searchParams.append('service', service);
@@ -29,9 +29,17 @@ function authUrl(service) {
   return url.toString();
 }
 
-const config = {
+type Config = {
+  isDev: boolean,
+  appId: string,
+  oneGraphOrigin: string,
+  fetchUrl: string,
+  authUrl: (service: string) => string,
+};
+
+const config: Config = {
   isDev: DEV,
-  applicationId,
+  appId,
   oneGraphOrigin: baseUrl.toString(),
   fetchUrl: fetchUrl.toString(),
   authUrl,
