@@ -10,6 +10,7 @@ import {introspectionQuery, buildClientSchema} from 'graphql';
 import {getPath} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
+import prettyPrint from './prettyPrint';
 
 import type {AuthResponse, Service} from 'onegraph-auth';
 
@@ -354,6 +355,12 @@ class App extends React.Component<Props, State> {
       </GraphiQL.Menu>
     );
   };
+
+  handlePrettifyQuery = () => {
+    const editor = this.graphiql.getQueryEditor();
+    editor.setValue(prettyPrint(editor.getValue()));
+  };
+
   render() {
     const showGraphQLSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     return (
@@ -404,7 +411,7 @@ class App extends React.Component<Props, State> {
               <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
               <GraphiQL.Toolbar>
                 <GraphiQL.Button
-                  onClick={() => this.graphiql.handlePrettifyQuery()}
+                  onClick={this.handlePrettifyQuery}
                   label="Prettify"
                   title="Prettify Query (Shift-Ctrl-P)"
                 />
