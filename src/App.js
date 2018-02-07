@@ -52,7 +52,7 @@ function graphQLFetcher(
   graphQLParams: Object,
 ): Promise<string> {
   const url = new URL(serveUrl);
-  url.searchParams.set('application_id', appId);
+  url.searchParams.set('app_id', appId);
   return fetch(url.toString(), {
     method: 'post',
     headers: {
