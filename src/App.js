@@ -119,7 +119,7 @@ class LoginButton extends React.Component<
     const serviceName = oneGraphAuth.friendlyServiceName;
     return (
       <GraphiQL.MenuItem
-        label={(isSignedIn ? '\u2713 ' : '  ') + serviceName}
+        label={(isSignedIn ? '\u2713 ' : 'Log in to ') + serviceName}
         disabled={this.state.loading || isSignedIn}
         title={serviceName}
         onSelect={this._onSelect}
