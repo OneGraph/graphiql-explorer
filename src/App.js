@@ -357,8 +357,13 @@ class App extends React.Component<Props, State> {
   };
 
   handlePrettifyQuery = () => {
-    const editor = this.graphiql.getQueryEditor();
-    editor.setValue(prettyPrint(editor.getValue()));
+    try {
+      const editor = this.graphiql.getQueryEditor();
+      editor.setValue(prettyPrint(editor.getValue()));
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   };
 
   render() {
