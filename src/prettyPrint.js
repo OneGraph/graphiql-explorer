@@ -32,8 +32,6 @@ function prettyPrint(text) {
 
   const doc = printGenerically(new FastPath(result));
   propagateBreaks(doc);
-  console.log({doc});
-
   return printDocToString(doc, options).formatted;
 }
 
