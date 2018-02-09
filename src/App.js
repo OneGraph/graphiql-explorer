@@ -194,6 +194,15 @@ const DEFAULT_APP = {
   id: Config.appId,
 };
 
+function getAppFromURL(): ?{id: string, name: string} {
+  const url = new URL(window.location);
+  const id = url.searchParams.get('appId');
+  const name = url.searchParams.get('appName'); // TODO: lookup name from API
+  if (id && name) {
+    return {id, name};
+  }
+}
+
 class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
   _githubOneGraphAuth: OneGraphAuth = makeOneGraphAuth('github');
@@ -202,11 +211,15 @@ class App extends React.Component<Props, State> {
   _twitterOneGraphAuth: OneGraphAuth = makeOneGraphAuth('twitter');
   _showBetaSchema: boolean;
   _params: Object;
+  _defaultApp: {id: string, name: string};
   graphiql: GraphiQL;
+
   constructor(props: Props) {
     super(props);
     const params = windowParams();
     this._showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
+    const appFromURL = getAppFromURL();
+    this._defaultApp = appFromURL || DEFAULT_APP;
     this.state = {
       githubLoggedIn: null,
       googleLoggedIn: null,
@@ -224,8 +237,8 @@ class App extends React.Component<Props, State> {
       queryResultMessage: 'Request time: -ms',
       rawSchema: null,
       schema: null,
-      apps: [DEFAULT_APP],
-      activeApp: DEFAULT_APP,
+      apps: [this._defaultApp],
+      activeApp: this._defaultApp,
     };
     this._params = params;
   }
@@ -262,7 +275,7 @@ class App extends React.Component<Props, State> {
   _fetchApps = () => {
     this._graphQLFetch({query: appsQuery}).then(data => {
       this.setState({
-        apps: [DEFAULT_APP].concat(getPath(data, ['data', 'oneGraph', 'apps'])),
+        apps: [this._defaultApp].concat(getPath(data, ['data', 'oneGraph', 'apps'])),
       });
     });
   };
