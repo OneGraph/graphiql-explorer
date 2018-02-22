@@ -72,6 +72,13 @@ function graphQLFetcher(
       } catch (error) {
         return responseBody;
       }
+    })
+    .catch(function(err) {
+      return {
+        errors: [
+          "Network error. Hint: Did you enable 'https://graphiql.onegraphapp.com' under your app's CORS origins in the OneGraph dashboard?",
+        ],
+      };
     });
 }
 
@@ -243,10 +250,14 @@ class App extends React.Component<Props, State> {
     this._params = params;
   }
   _graphQLFetch = (params: Object): Object => {
-    return graphQLFetcher(Config.fetchUrl, this.state.activeApp.id, {
-      ...params,
-      showBetaSchema: this._showBetaSchema,
-    });
+    return graphQLFetcher(
+      Config.fetchUrl,
+      params.appId || this.state.activeApp.id,
+      {
+        ...params,
+        showBetaSchema: this._showBetaSchema,
+      },
+    );
   };
 
   _graphiqlFetch = (params: Object): Object => {
@@ -273,9 +284,16 @@ class App extends React.Component<Props, State> {
     });
   };
   _fetchApps = () => {
-    this._graphQLFetch({query: appsQuery}).then(data => {
+    this._graphQLFetch({
+      query: appsQuery,
+      /* Always use GraphiQL's appId when fetching the schema for the first time */
+      appId: '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
+    }).then(data => {
       this.setState({
-        apps: [this._defaultApp].concat(getPath(data, ['data', 'oneGraph', 'apps'])),
+        apps: [this._defaultApp]
+          .concat(getPath(data, ['data', 'oneGraph', 'apps']))
+          .filter(Boolean)
+          .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
       });
     });
   };
@@ -283,7 +301,11 @@ class App extends React.Component<Props, State> {
     this._fetchAuth();
   };
   componentDidMount() {
-    this._graphQLFetch({query: introspectionQuery}).then(result => {
+    this._graphQLFetch({
+      query: introspectionQuery,
+      /* Always use GraphiQL's appId when fetching the schema for the first time */
+      appId: '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
+    }).then(result => {
       if (result.data) {
         this.setState(currentState => {
           return {
@@ -350,14 +372,16 @@ class App extends React.Component<Props, State> {
       <GraphiQL.Menu
         label={activeApp.name}
         title="Choose the OneGraph app you want to use">
-        {apps.map(app => (
-          <GraphiQL.MenuItem
-            key={app.id}
-            label={`${activeApp.id === app.id ? '\u2713 ' : ''}${app.name}`}
-            title={`${app.id}`}
-            onSelect={() => this.setState({activeApp: app})}
-          />
-        ))}
+        {apps.map(app => {
+          return (
+            <GraphiQL.MenuItem
+              key={app.id}
+              label={`${activeApp.id === app.id ? '\u2713 ' : ''}${app.name}`}
+              title={`${app.id}`}
+              onSelect={() => this.setState({activeApp: app})}
+            />
+          );
+        })}
         {apps.length === 1 && apps[0] === DEFAULT_APP ? (
           <GraphiQL.MenuItem
             label="Create an app"
