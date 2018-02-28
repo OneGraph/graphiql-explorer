@@ -168,10 +168,10 @@ const appsQuery = `
   }
 `;
 
-function makeOneGraphAuth(service: Service): OneGraphAuth {
+function makeOneGraphAuth(service: Service, appId: string): OneGraphAuth {
   return new OneGraphAuth({
     oneGraphOrigin: Config.oneGraphOrigin,
-    appId: Config.appId,
+    appId,
     service,
   });
 }
@@ -212,10 +212,10 @@ function getAppFromURL(): ?{id: string, name: string} {
 
 class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
-  _githubOneGraphAuth: OneGraphAuth = makeOneGraphAuth('github');
-  _googleOneGraphAuth: OneGraphAuth = makeOneGraphAuth('google');
-  _stripeOneGraphAuth: OneGraphAuth = makeOneGraphAuth('stripe');
-  _twitterOneGraphAuth: OneGraphAuth = makeOneGraphAuth('twitter');
+  _githubOneGraphAuth: OneGraphAuth;
+  _googleOneGraphAuth: OneGraphAuth;
+  _stripeOneGraphAuth: OneGraphAuth;
+  _twitterOneGraphAuth: OneGraphAuth;
   _showBetaSchema: boolean;
   _params: Object;
   _defaultApp: {id: string, name: string};
@@ -248,7 +248,14 @@ class App extends React.Component<Props, State> {
       activeApp: this._defaultApp,
     };
     this._params = params;
+    this._resetAuths(this._defaultApp.id);
   }
+  _resetAuths = appId => {
+    this._githubOneGraphAuth = makeOneGraphAuth('github', appId);
+    this._googleOneGraphAuth = makeOneGraphAuth('google', appId);
+    this._stripeOneGraphAuth = makeOneGraphAuth('stripe', appId);
+    this._twitterOneGraphAuth = makeOneGraphAuth('twitter', appId);
+  };
   _graphQLFetch = (params: Object): Object => {
     return graphQLFetcher(
       Config.fetchUrl,
@@ -272,7 +279,10 @@ class App extends React.Component<Props, State> {
   };
 
   _fetchAuth = () => {
-    this._graphQLFetch({query: meQuery}).then(x => {
+    this._graphQLFetch({
+      query: meQuery,
+      appId: this.state.activeApp.id,
+    }).then(x => {
       this.setState({
         googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
         githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
@@ -286,8 +296,8 @@ class App extends React.Component<Props, State> {
   _fetchApps = () => {
     this._graphQLFetch({
       query: appsQuery,
-      /* Always use GraphiQL's appId when fetching the schema for the first time */
-      appId: '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
+      // Always use GraphiQL's appId when fetching apps
+      appId: Config.appId,
     }).then(data => {
       this.setState({
         apps: [this._defaultApp]
@@ -298,13 +308,14 @@ class App extends React.Component<Props, State> {
     });
   };
   _setupForNewApp = () => {
+    this._resetAuths(this.state.activeApp.id);
     this._fetchAuth();
   };
   componentDidMount() {
     this._graphQLFetch({
       query: introspectionQuery,
-      /* Always use GraphiQL's appId when fetching the schema for the first time */
-      appId: '0b33e830-7cde-4b90-ad7e-2a39c57c0e11',
+      // Always use GraphiQL's appId when fetching the schema
+      appId: Config.appId,
     }).then(result => {
       if (result.data) {
         this.setState(currentState => {
@@ -372,16 +383,14 @@ class App extends React.Component<Props, State> {
       <GraphiQL.Menu
         label={activeApp.name}
         title="Choose the OneGraph app you want to use">
-        {apps.map(app => {
-          return (
-            <GraphiQL.MenuItem
-              key={app.id}
-              label={`${activeApp.id === app.id ? '\u2713 ' : ''}${app.name}`}
-              title={`${app.id}`}
-              onSelect={() => this.setState({activeApp: app})}
-            />
-          );
-        })}
+        {apps.map(app => (
+          <GraphiQL.MenuItem
+            key={app.id}
+            label={`${activeApp.id === app.id ? '\u2713 ' : ''}${app.name}`}
+            title={`${app.id}`}
+            onSelect={() => this.setState({activeApp: app})}
+          />
+        ))}
         {apps.length === 1 && apps[0] === DEFAULT_APP ? (
           <GraphiQL.MenuItem
             label="Create an app"
