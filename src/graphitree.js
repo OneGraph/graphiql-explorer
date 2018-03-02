@@ -196,16 +196,14 @@ class Graphitree extends Component {
     let dataSource = queryTopLevel.fields;
 
     return (
-      <div>
-        <div>
-          <TreeTop
-            handleNodesUpdated={this.updateNodes.bind(this)}
-            selectedNodes={this.props.selectedNodes}
-            hasNode={this.hasNode.bind(this)}
-            typeLookup={typeLookup}
-            dataSource={dataSource}
-          />
-        </div>
+      <div className="graphitree">
+        <TreeTop
+          handleNodesUpdated={this.updateNodes.bind(this)}
+          selectedNodes={this.props.selectedNodes}
+          hasNode={this.hasNode.bind(this)}
+          typeLookup={typeLookup}
+          dataSource={dataSource}
+        />
       </div>
     );
   }

@@ -39,7 +39,6 @@
 
 .info, .node {
   padding: 2px 10px 2px 5px;
-  font: 14px Helvetica, Arial, sans-serif;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -56,4 +55,13 @@
 
 .tree-view_arrow-empty {
   color: yellow;
+}
+
+.graphitree {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  padding: 8px;
 }
