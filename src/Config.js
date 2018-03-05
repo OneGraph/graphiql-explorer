@@ -13,7 +13,7 @@ if (DEV) {
   if (!DEV_SSL) {
     baseUrl.protocol = 'http:';
   }
-  baseUrl.hostname = 'serve.onegraph.test';
+  baseUrl.hostname = 'serve.onegraph.io';
   baseUrl.port = '8082';
 }
 
