@@ -63,11 +63,7 @@ class TreeEntry extends React.Component {
       <span
         className="node"
         onClick={this.handleClick.bind(this, this.props.path)}>
-        <input
-          type="checkbox"
-          checked={!!isChecked}
-          onClick={this.handleClick.bind(this, this.props.path)}
-        />
+        <input type="checkbox" checked={!!isChecked} />
         {node.name}
       </span>
     );
