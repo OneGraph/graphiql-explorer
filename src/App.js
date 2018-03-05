@@ -413,7 +413,6 @@ class App extends React.Component<Props, State> {
   };
 
   render() {
-    const showGraphQLSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     return (
       <div>
         {!!this.state.schema ? (
@@ -491,32 +490,26 @@ class App extends React.Component<Props, State> {
                     title="Toggle Explorer"
                   />
                   <GraphiQL.Menu label="Authentication" title="Authentication">
-                    {showGraphQLSchema ? (
-                      <LoginButton
-                        oneGraphAuth={this._githubOneGraphAuth}
-                        onAuthResponse={this._fetchAuth}
-                        isSignedIn={this.state.githubLoggedIn}
-                      />
-                    ) : null}
-                    {showGraphQLSchema ? (
-                      <LoginButton
-                        oneGraphAuth={this._googleOneGraphAuth}
-                        onAuthResponse={this._fetchAuth}
-                        isSignedIn={this.state.googleLoggedIn}
-                      />
-                    ) : null}
+                    <LoginButton
+                      oneGraphAuth={this._githubOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.githubLoggedIn}
+                    />
+                    <LoginButton
+                      oneGraphAuth={this._googleOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.googleLoggedIn}
+                    />
                     <LoginButton
                       oneGraphAuth={this._stripeOneGraphAuth}
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.stripeLoggedIn}
                     />
-                    {showGraphQLSchema ? (
-                      <LoginButton
-                        oneGraphAuth={this._twitterOneGraphAuth}
-                        onAuthResponse={this._fetchAuth}
-                        isSignedIn={this.state.twitterLoggedIn}
-                      />
-                    ) : null}
+                    <LoginButton
+                      oneGraphAuth={this._twitterOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.twitterLoggedIn}
+                    />
                   </GraphiQL.Menu>
                   {this._appSelector()}
                 </GraphiQL.Toolbar>
