@@ -468,7 +468,6 @@ class App extends React.Component<Props, State> {
                 onEditVariables={this.onEditVariables}
                 onEditOperationName={this.onEditOperationName}
                 query={this.state.query}
-                response={null}
                 variables={this.state.variables}
                 operationName={null}
                 schema={this.state.schema}>
