@@ -104,6 +104,29 @@ type LoginButtonProps = {
   isSignedIn: ?boolean,
 };
 
+// eslint-disable-next-line
+const _devTimeLoginButtonForNewAuthService = (service, isSignedIn, href) => {
+  return (
+    <GraphiQL.MenuItem
+      label={(isSignedIn ? '\u2713 ' : '  ') + service}
+      disabled={isSignedIn}
+      title={service}
+      onSelect={event => {
+        // console.log is here to make the no-unused-expression error go away. What's the equivalent of ignore() in JS?
+        console.log(
+          isSignedIn
+            ? null
+            : window.open(
+                href,
+                '_blank',
+                'location=yes,height=570,width=520,scrollbars=yes,status=yes',
+              ),
+        );
+      }}
+    />
+  );
+};
+
 class LoginButton extends React.Component<
   LoginButtonProps,
   {loading: boolean},
@@ -138,19 +161,28 @@ class LoginButton extends React.Component<
 const meQuery = `
   query {
     me {
+      eventil {
+        id
+      }
       google {
         email
-      }
-      twitter {
-        screenName
       }
       github {
         login
       }
+      oneGraph {
+        id
+      }
       stripe {
         id
       }
-      oneGraph {
+      twitter {
+        screenName
+      }
+      twilio {
+        id
+      }
+      zendesk {
         id
       }
     }
@@ -212,10 +244,13 @@ function getAppFromURL(): ?{id: string, name: string} {
 
 class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
+  _eventilOneGraphAuth: OneGraphAuth;
   _githubOneGraphAuth: OneGraphAuth;
   _googleOneGraphAuth: OneGraphAuth;
   _stripeOneGraphAuth: OneGraphAuth;
   _twitterOneGraphAuth: OneGraphAuth;
+  _twilioOneGraphAuth: OneGraphAuth;
+  _zendeskOneGraphAuth: OneGraphAuth;
   _showBetaSchema: boolean;
   _params: Object;
   _defaultApp: {id: string, name: string};
@@ -228,12 +263,15 @@ class App extends React.Component<Props, State> {
     const appFromURL = getAppFromURL();
     this._defaultApp = appFromURL || DEFAULT_APP;
     this.state = {
+      eventilLoggedIn: null,
       githubLoggedIn: null,
       googleLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
       onegraphLoggedIn: null,
       sfdcLoggedIn: null,
+      twilioLoggedIn: null,
+      zendeskLoggedIn: null,
       query: params.query
         ? decodeURIComponent(params.query)
         : defaultQuery(this._showBetaSchema),
@@ -251,10 +289,13 @@ class App extends React.Component<Props, State> {
     this._resetAuths(this._defaultApp.id);
   }
   _resetAuths = appId => {
+    this._eventilOneGraphAuth = makeOneGraphAuth('eventil', appId);
     this._githubOneGraphAuth = makeOneGraphAuth('github', appId);
     this._googleOneGraphAuth = makeOneGraphAuth('google', appId);
     this._stripeOneGraphAuth = makeOneGraphAuth('stripe', appId);
     this._twitterOneGraphAuth = makeOneGraphAuth('twitter', appId);
+    this._twilioOneGraphAuth = makeOneGraphAuth('twilio', appId);
+    this._zendeskOneGraphAuth = makeOneGraphAuth('zendesk', appId);
   };
   _graphQLFetch = (params: Object): Object => {
     return graphQLFetcher(
@@ -284,10 +325,12 @@ class App extends React.Component<Props, State> {
       appId: this.state.activeApp.id,
     }).then(x => {
       this.setState({
+        eventilLoggedIn: !!getPath(x, ['data', 'me', 'eventil', 'id']),
         googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
         githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
         sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
         stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'id']),
+        twilioLoggedIn: !!getPath(x, ['data', 'me', 'twilio', 'id']),
         twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screenName']),
         onegraphLoggedIn: !!getPath(x, ['data', 'me', 'oneGraph', 'id']),
       });
@@ -489,6 +532,18 @@ class App extends React.Component<Props, State> {
                     title="Toggle Explorer"
                   />
                   <GraphiQL.Menu label="Authentication" title="Authentication">
+                    {/*
+               _devTimeLoginButtonForNewAuthService(
+               'Zendesk',
+               this.state.zendeskLoggedIn,
+               Config.authUrl('zendesk'),
+               )
+             */}
+                    <LoginButton
+                      oneGraphAuth={this._eventilOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.eventilLoggedIn}
+                    />
                     <LoginButton
                       oneGraphAuth={this._githubOneGraphAuth}
                       onAuthResponse={this._fetchAuth}
@@ -503,6 +558,11 @@ class App extends React.Component<Props, State> {
                       oneGraphAuth={this._stripeOneGraphAuth}
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.stripeLoggedIn}
+                    />
+                    <LoginButton
+                      oneGraphAuth={this._twilioOneGraphAuth}
+                      onAuthResponse={this._fetchAuth}
+                      isSignedIn={this.state.twilioLoggedIn}
                     />
                     <LoginButton
                       oneGraphAuth={this._twitterOneGraphAuth}

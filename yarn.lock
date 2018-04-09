@@ -4294,9 +4294,9 @@ once@^1.3.0, once@^1.3.3, once@^1.4.0:
   dependencies:
     wrappy "1"
 
-onegraph-auth@0.1.23:
-  version "0.1.23"
-  resolved "https://registry.yarnpkg.com/onegraph-auth/-/onegraph-auth-0.1.23.tgz#28f18fa9a36b637f94b317dc50050afee9e8af18"
+onegraph-auth@0.1.32:
+  version "0.1.32"
+  resolved "https://registry.yarnpkg.com/onegraph-auth/-/onegraph-auth-0.1.32.tgz#3819c76d21b343461dcf642c373acd68b1314658"
   dependencies:
     idx "^2.2.0"
     regenerator-runtime "^0.11.1"
