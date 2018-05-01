@@ -11,6 +11,7 @@ import {getPath} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
+import Search from './Search';
 
 import type {AuthResponse, Service} from 'onegraph-auth';
 
@@ -149,6 +150,7 @@ class LoginButton extends React.Component<
     const serviceName = oneGraphAuth.friendlyServiceName;
     return (
       <GraphiQL.MenuItem
+        key={serviceName}
         label={(isSignedIn ? '\u2713 ' : 'Log in to ') + serviceName}
         disabled={this.state.loading || isSignedIn}
         title={serviceName}
@@ -195,6 +197,19 @@ const appsQuery = `
       apps {
         name
         id
+      }
+    }
+  }
+`;
+
+const searchQueriesQuery = `
+  query searchQueries($query: String!) {
+    oneGraph {
+      searchQueries(query: $query) {
+        name
+        description
+        body
+        public
       }
     }
   }
@@ -571,6 +586,39 @@ class App extends React.Component<Props, State> {
                     />
                   </GraphiQL.Menu>
                   {this._appSelector()}
+
+                  <Search
+                    placeholder={'Search queries...'}
+                    onSuggestionSelected={(
+                      event,
+                      {
+                        suggestion,
+                        suggestionValue,
+                        suggestionIndex,
+                        sectionIndex,
+                        method,
+                      },
+                    ) => {
+                      this.graphiql.getQueryEditor().setValue(suggestion.body);
+                    }}
+                    getSuggestions={(value, cb) => {
+                      const query = value;
+                      if (!query || query.length < 4) {
+                        return null;
+                      }
+                      this._graphQLFetch({
+                        query: searchQueriesQuery,
+                        appId: this.state.activeApp.id,
+                        variables: {query},
+                      }).then(result => {
+                        console.log(
+                          'Search results for `' + query + '`: ',
+                          result,
+                        );
+                        cb(result);
+                      });
+                    }}
+                  />
                 </GraphiQL.Toolbar>
                 <GraphiQL.Footer>
                   {this.state.queryResultMessage}
