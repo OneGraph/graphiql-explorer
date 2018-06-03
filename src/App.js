@@ -50,6 +50,8 @@ const EXPLORER_STORAGE_KEY = 'onegraph:showExplorer';
 function graphQLFetcher(
   serveUrl: string,
   appId: string,
+  showBetaSchema: boolean,
+  oneGraphAuth: OneGraphAuth,
   graphQLParams: Object,
 ): Promise<string> {
   const url = new URL(serveUrl);
@@ -59,10 +61,10 @@ function graphQLFetcher(
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      show_beta_schema: !!graphQLParams.showBetaSchema,
+      show_beta_schema: !!showBetaSchema,
+      ...oneGraphAuth.authHeaders(),
     },
     body: JSON.stringify(graphQLParams),
-    credentials: 'include',
   })
     .then(function(response) {
       return response.text();
@@ -101,6 +103,7 @@ function handleGQLExplorerUpdated(editor, query) {
 
 type LoginButtonProps = {
   oneGraphAuth: OneGraphAuth,
+  service: Service,
   onAuthResponse: (response: AuthResponse) => void,
   isSignedIn: ?boolean,
 };
@@ -134,10 +137,10 @@ class LoginButton extends React.Component<
 > {
   state = {loading: false};
   _onSelect = async (): Promise<void> => {
-    const {oneGraphAuth, onAuthResponse} = this.props;
+    const {oneGraphAuth, service, onAuthResponse} = this.props;
     try {
       this.setState({loading: true});
-      const authResponse = await oneGraphAuth.login();
+      const authResponse = await oneGraphAuth.login(service);
       onAuthResponse(authResponse);
       this.setState({loading: false});
     } catch (e) {
@@ -146,8 +149,8 @@ class LoginButton extends React.Component<
     }
   };
   render() {
-    const {oneGraphAuth, isSignedIn} = this.props;
-    const serviceName = oneGraphAuth.friendlyServiceName;
+    const {oneGraphAuth, service, isSignedIn} = this.props;
+    const serviceName = oneGraphAuth.friendlyServiceName(service);
     return (
       <GraphiQL.MenuItem
         key={serviceName}
@@ -159,37 +162,6 @@ class LoginButton extends React.Component<
     );
   }
 }
-
-const meQuery = `
-  query {
-    me {
-      eventil {
-        id
-      }
-      google {
-        email
-      }
-      github {
-        login
-      }
-      oneGraph {
-        id
-      }
-      stripe {
-        id
-      }
-      twitter {
-        screenName
-      }
-      twilio {
-        id
-      }
-      zendesk {
-        id
-      }
-    }
-  }
-`;
 
 const appsQuery = `
   query {
@@ -214,14 +186,6 @@ const searchQueriesQuery = `
     }
   }
 `;
-
-function makeOneGraphAuth(service: Service, appId: string): OneGraphAuth {
-  return new OneGraphAuth({
-    oneGraphOrigin: Config.oneGraphOrigin,
-    appId,
-    service,
-  });
-}
 
 type Props = {};
 type State = {
@@ -259,13 +223,7 @@ function getAppFromURL(): ?{id: string, name: string} {
 
 class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
-  _eventilOneGraphAuth: OneGraphAuth;
-  _githubOneGraphAuth: OneGraphAuth;
-  _googleOneGraphAuth: OneGraphAuth;
-  _stripeOneGraphAuth: OneGraphAuth;
-  _twitterOneGraphAuth: OneGraphAuth;
-  _twilioOneGraphAuth: OneGraphAuth;
-  _zendeskOneGraphAuth: OneGraphAuth;
+  _oneGraphAuth: OneGraphAuth;
   _showBetaSchema: boolean;
   _params: Object;
   _defaultApp: {id: string, name: string};
@@ -304,22 +262,18 @@ class App extends React.Component<Props, State> {
     this._resetAuths(this._defaultApp.id);
   }
   _resetAuths = appId => {
-    this._eventilOneGraphAuth = makeOneGraphAuth('eventil', appId);
-    this._githubOneGraphAuth = makeOneGraphAuth('github', appId);
-    this._googleOneGraphAuth = makeOneGraphAuth('google', appId);
-    this._stripeOneGraphAuth = makeOneGraphAuth('stripe', appId);
-    this._twitterOneGraphAuth = makeOneGraphAuth('twitter', appId);
-    this._twilioOneGraphAuth = makeOneGraphAuth('twilio', appId);
-    this._zendeskOneGraphAuth = makeOneGraphAuth('zendesk', appId);
+    this._oneGraphAuth = new OneGraphAuth({
+      oneGraphOrigin: Config.oneGraphOrigin,
+      appId,
+    });
   };
   _graphQLFetch = (params: Object): Object => {
     return graphQLFetcher(
       Config.fetchUrl,
       params.appId || this.state.activeApp.id,
-      {
-        ...params,
-        showBetaSchema: this._showBetaSchema,
-      },
+      this._showBetaSchema,
+      this._oneGraphAuth,
+      params,
     );
   };
 
@@ -335,21 +289,27 @@ class App extends React.Component<Props, State> {
   };
 
   _fetchAuth = () => {
-    this._graphQLFetch({
-      query: meQuery,
-      appId: this.state.activeApp.id,
-    }).then(x => {
-      this.setState({
-        eventilLoggedIn: !!getPath(x, ['data', 'me', 'eventil', 'id']),
-        googleLoggedIn: !!getPath(x, ['data', 'me', 'google', 'email']),
-        githubLoggedIn: !!getPath(x, ['data', 'me', 'github', 'login']),
-        sfdcLoggedIn: !!getPath(x, ['data', 'me', 'sfdc', 'email']),
-        stripeLoggedIn: !!getPath(x, ['data', 'me', 'stripe', 'id']),
-        twilioLoggedIn: !!getPath(x, ['data', 'me', 'twilio', 'id']),
-        twitterLoggedIn: !!getPath(x, ['data', 'me', 'twitter', 'screenName']),
-        onegraphLoggedIn: !!getPath(x, ['data', 'me', 'oneGraph', 'id']),
-      });
-    });
+    this._oneGraphAuth
+      .isLoggedIn('eventil')
+      .then(eventilLoggedIn => this.setState({eventilLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('github')
+      .then(githubLoggedIn => this.setState({githubLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('google')
+      .then(googleLoggedIn => this.setState({googleLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('stripe')
+      .then(stripeLoggedIn => this.setState({stripeLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('twitter')
+      .then(twitterLoggedIn => this.setState({twitterLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('twilio')
+      .then(twilioLoggedIn => this.setState({twilioLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('zendesk')
+      .then(zendeskLoggedIn => this.setState({zendeskLoggedIn}));
   };
   _fetchApps = () => {
     this._graphQLFetch({
@@ -555,37 +515,46 @@ class App extends React.Component<Props, State> {
                )
              */}
                     <LoginButton
-                      oneGraphAuth={this._eventilOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="eventil"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.eventilLoggedIn}
                     />
                     <LoginButton
-                      oneGraphAuth={this._githubOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="github"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.githubLoggedIn}
                     />
                     <LoginButton
-                      oneGraphAuth={this._googleOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="google"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.googleLoggedIn}
                     />
                     <LoginButton
-                      oneGraphAuth={this._stripeOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="stripe"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.stripeLoggedIn}
                     />
                     <LoginButton
-                      oneGraphAuth={this._twilioOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="twilio"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.twilioLoggedIn}
                     />
                     <LoginButton
-                      oneGraphAuth={this._twitterOneGraphAuth}
+                      oneGraphAuth={this._oneGraphAuth}
+                      service="twitter"
                       onAuthResponse={this._fetchAuth}
                       isSignedIn={this.state.twitterLoggedIn}
                     />
                   </GraphiQL.Menu>
+                  {/*
+                  Remove app selector until we have a way to authenticate to OneGraph from graphiql
                   {this._appSelector()}
+                   */}
 
                   <Search
                     placeholder={'Search queries...'}
