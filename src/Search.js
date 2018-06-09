@@ -31,10 +31,9 @@ const truncateMatch = (needle, haystacks) => {
     Math.max(0, match.index - buffer),
     Math.min(match.input.length, match.index + buffer),
   ];
-  return `${leftTruncation}${match.input.substring(
-    range[0],
-    range[1],
-  )}${rightTruncation}`;
+  return `${leftTruncation}${match.input.substring(range[0], range[1])}${
+    rightTruncation
+  }`;
 };
 
 class Example extends React.Component {

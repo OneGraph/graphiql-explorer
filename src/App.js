@@ -249,6 +249,9 @@ class App extends React.Component<Props, State> {
         ? decodeURIComponent(params.query)
         : defaultQuery(this._showBetaSchema),
       variables: params.variables ? decodeURIComponent(params.variables) : '',
+      operationName: params.operationName
+        ? decodeURIComponent(params.operationName)
+        : '',
       explorerIsOpen: this._storage.get(EXPLORER_STORAGE_KEY),
       params,
       selectedNodes: new Set([]),
@@ -378,11 +381,13 @@ class App extends React.Component<Props, State> {
     });
     this.setParam('query', newQuery);
   };
-  onEditVariables = (newVariables: string) => {
-    this.setParam('variables', newVariables);
+  onEditVariables = (variables: string) => {
+    this.setState({variables});
+    this.setParam('variables', variables);
   };
-  onEditOperationName = (newOperationName: string) => {
-    this.setParam('operationName', newOperationName);
+  onEditOperationName = (operationName: string) => {
+    this.setState({operationName});
+    this.setParam('operationName', operationName);
   };
   toggleExplorer = () => {
     this.setState(
@@ -487,7 +492,7 @@ class App extends React.Component<Props, State> {
                 onEditOperationName={this.onEditOperationName}
                 query={this.state.query}
                 variables={this.state.variables}
-                operationName={null}
+                operationName={this.state.operationName}
                 schema={this.state.schema}>
                 <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
                 <GraphiQL.Toolbar>
