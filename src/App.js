@@ -1,9 +1,9 @@
 // @flow
 
 import React from 'react';
-import GraphiQL from 'graphiql';
-import StorageAPI from 'graphiql/dist/utility/StorageAPI';
-import 'graphiql/graphiql.css';
+import GraphiQL from '@onegraph/graphiql';
+import StorageAPI from '@onegraph/graphiql/dist/utility/StorageAPI';
+import '@onegraph/graphiql/graphiql.css';
 import Graphitree from './graphitree';
 import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
@@ -53,7 +53,7 @@ function graphQLFetcher(
   showBetaSchema: boolean,
   oneGraphAuth: OneGraphAuth,
   graphQLParams: Object,
-): Promise<string> {
+): Promise<Object | string> {
   const url = new URL(serveUrl);
   url.searchParams.set('app_id', appId);
   return fetch(url.toString(), {
@@ -204,6 +204,10 @@ type State = {
   stripeLoggedIn: ?boolean,
   twitterLoggedIn: ?boolean,
   sfdcLoggedIn: ?boolean,
+  twilioLoggedIn: ?boolean,
+  eventilLoggedIn: ?boolean,
+  zendeskLoggedIn: ?boolean,
+  operationName: string,
   activeApp: {id: string, name: string},
 };
 
@@ -264,7 +268,7 @@ class App extends React.Component<Props, State> {
     this._params = params;
     this._resetAuths(this._defaultApp.id);
   }
-  _resetAuths = appId => {
+  _resetAuths = (appId: string) => {
     this._oneGraphAuth = new OneGraphAuth({
       oneGraphOrigin: Config.oneGraphOrigin,
       appId,
