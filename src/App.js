@@ -442,32 +442,30 @@ class App extends React.Component<Props, State> {
   render() {
     return (
       <div>
-        {!!this.state.schema ? (
+        <div
+          className="graphiql-container"
+          style={{
+            height: '100vh',
+            display: 'flex',
+          }}>
           <div
-            className="graphiql-container"
+            className="historyPaneWrap"
             style={{
               height: '100vh',
-              display: 'flex',
+              width: '230px',
+              zIndex: 7,
+              display: this.state.explorerIsOpen ? 'block' : 'none',
             }}>
-            <div
-              className="historyPaneWrap"
-              style={{
-                height: '100vh',
-                width: '230px',
-                zIndex: 7,
-                display: this.state.explorerIsOpen ? 'block' : 'none',
-              }}>
-              <div className="history-title-bar">
-                <div className="history-title">Explorer</div>
-                <div className="doc-explorer-rhs">
-                  <div
-                    className="docExplorerHide"
-                    onClick={this.toggleExplorer}>
-                    {'\u2715'}
-                  </div>
+            <div className="history-title-bar">
+              <div className="history-title">Explorer</div>
+              <div className="doc-explorer-rhs">
+                <div className="docExplorerHide" onClick={this.toggleExplorer}>
+                  {'\u2715'}
                 </div>
               </div>
-              <div className="history-contents">
+            </div>
+            <div className="history-contents">
+              {this.state.schema ? (
                 <Graphitree
                   onQueryChange={query => {
                     if (!!this.graphiql) {
@@ -480,131 +478,150 @@ class App extends React.Component<Props, State> {
                   rawSchema={this.state.rawSchema}
                   selectedNodes={this.state.selectedNodes}
                 />
-              </div>
+              ) : null}
             </div>
-            <div
-              style={{
-                width: this.state.explorerIsOpen
-                  ? 'calc(100vw - 230px)'
-                  : '100vw',
-              }}>
-              <GraphiQL
-                ref={c => (this.graphiql = c)}
-                fetcher={this._graphiqlFetch}
-                onEditQuery={this.onEditQuery}
-                onEditVariables={this.onEditVariables}
-                onEditOperationName={this.onEditOperationName}
-                query={this.state.query}
-                variables={this.state.variables}
-                operationName={this.state.operationName}
-                schema={this.state.schema}>
-                <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
-                <GraphiQL.Toolbar>
-                  <GraphiQL.Button
-                    onClick={this.handlePrettifyQuery}
-                    label="Prettify"
-                    title="Prettify Query (Shift-Ctrl-P)"
-                  />
-                  <GraphiQL.Button
-                    onClick={() => this.graphiql.handleToggleHistory()}
-                    title="Show History"
-                    label="History"
-                  />
-                  <GraphiQL.Button
-                    onClick={this.toggleExplorer}
-                    label="Explorer"
-                    title="Toggle Explorer"
-                  />
-                  <GraphiQL.Menu label="Authentication" title="Authentication">
-                    {/*
+          </div>
+          <div
+            style={{
+              width: this.state.explorerIsOpen
+                ? 'calc(100vw - 230px)'
+                : '100vw',
+            }}>
+            <GraphiQL
+              ref={c => (this.graphiql = c)}
+              fetcher={this._graphiqlFetch}
+              onEditQuery={this.onEditQuery}
+              onEditVariables={this.onEditVariables}
+              onEditOperationName={this.onEditOperationName}
+              query={this.state.query}
+              variables={this.state.variables}
+              operationName={this.state.operationName}
+              schema={this.state.schema}>
+              <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
+              <GraphiQL.Toolbar>
+                <GraphiQL.Button
+                  onClick={this.handlePrettifyQuery}
+                  label="Prettify"
+                  title="Prettify Query (Shift-Ctrl-P)"
+                />
+                <GraphiQL.Button
+                  onClick={() => this.graphiql.handleToggleHistory()}
+                  title="Show History"
+                  label="History"
+                />
+                <GraphiQL.Button
+                  onClick={this.toggleExplorer}
+                  label="Explorer"
+                  title="Toggle Explorer"
+                />
+                <GraphiQL.Menu label="Authentication" title="Authentication">
+                  {/*
                _devTimeLoginButtonForNewAuthService(
                'Zendesk',
                this.state.zendeskLoggedIn,
                Config.authUrl('zendesk'),
                )
              */}
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="eventil"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.eventilLoggedIn}
-                    />
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="github"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.githubLoggedIn}
-                    />
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="google"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.googleLoggedIn}
-                    />
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="stripe"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.stripeLoggedIn}
-                    />
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="twilio"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.twilioLoggedIn}
-                    />
-                    <LoginButton
-                      oneGraphAuth={this._oneGraphAuth}
-                      service="twitter"
-                      onAuthResponse={this._fetchAuth}
-                      isSignedIn={this.state.twitterLoggedIn}
-                    />
-                  </GraphiQL.Menu>
-                  {/*
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="eventil"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.eventilLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="github"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.githubLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="google"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.googleLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="stripe"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.stripeLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="twilio"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.twilioLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="twitter"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.twitterLoggedIn}
+                  />
+                </GraphiQL.Menu>
+                {/*
                   Remove app selector until we have a way to authenticate to OneGraph from graphiql
                   {this._appSelector()}
                    */}
 
-                  <Search
-                    placeholder={'Search queries...'}
-                    onSuggestionSelected={(
-                      event,
-                      {
-                        suggestion,
-                        suggestionValue,
-                        suggestionIndex,
-                        sectionIndex,
-                        method,
-                      },
-                    ) => {
-                      this.graphiql.getQueryEditor().setValue(suggestion.body);
-                    }}
-                    getSuggestions={(value, cb) => {
-                      const query = value;
-                      if (!query || query.length < 4) {
-                        return null;
-                      }
-                      this._graphQLFetch({
-                        query: searchQueriesQuery,
-                        appId: this.state.activeApp.id,
-                        variables: {query},
-                      }).then(result => {
-                        console.log(
-                          'Search results for `' + query + '`: ',
-                          result,
-                        );
-                        cb(result);
-                      });
-                    }}
-                  />
-                </GraphiQL.Toolbar>
-                <GraphiQL.Footer>
-                  {this.state.queryResultMessage}
-                </GraphiQL.Footer>
-              </GraphiQL>
-            </div>
+                <Search
+                  placeholder={'Search queries...'}
+                  onSuggestionSelected={(
+                    event,
+                    {
+                      suggestion,
+                      suggestionValue,
+                      suggestionIndex,
+                      sectionIndex,
+                      method,
+                    },
+                  ) => {
+                    this.graphiql.getQueryEditor().setValue(suggestion.body);
+                  }}
+                  getSuggestions={(value, cb) => {
+                    const query = value;
+                    if (!query || query.length < 4) {
+                      return null;
+                    }
+                    this._graphQLFetch({
+                      query: searchQueriesQuery,
+                      appId: this.state.activeApp.id,
+                      variables: {query},
+                    }).then(result => {
+                      console.log(
+                        'Search results for `' + query + '`: ',
+                        result,
+                      );
+                      cb(result);
+                    });
+                  }}
+                />
+              </GraphiQL.Toolbar>
+              <GraphiQL.Footer>
+                <div
+                  style={{
+                    display: 'flex',
+                    height: '3em',
+                    alignItems: 'center',
+                    paddingLeft: '1em',
+                  }}>
+                  {this.state.schema ? (
+                    this.state.queryResultMessage
+                  ) : (
+                    <div>
+                      <div className="inline-spinner">
+                        <div className="spinner-container">
+                          <div className="spinner" />
+                        </div>
+                      </div>
+                      Loading schema...
+                    </div>
+                  )}
+                </div>
+              </GraphiQL.Footer>
+            </GraphiQL>
           </div>
-        ) : null}
+        </div>
       </div>
     );
   }

@@ -119,3 +119,25 @@ hr.result-title {
 .suggestion-preview {
     font-size: smaller;
 }
+
+.inline-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  padding-right: 12px;
+}
+
+.inline-spinner .spinner-container {
+  left: auto;
+  top: auto;
+  position: relative;
+  transform: none;
+  height: 18px;
+  width: 18px;
+}
+
+.inline-spinner .spinner-container .spinner {
+  position: relative;
+  height: 12px;
+  width: 12px;
+}
