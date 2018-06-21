@@ -5,7 +5,7 @@
   "dependencies": {
     "@onegraph/graphiql": "^0.11.11",
     "graphql": "^0.13.2",
-    "onegraph-auth": "0.2.0",
+    "onegraph-auth": "0.2.1",
     "react": "^15.6.1",
     "react-autosuggest": "^9.3.4",
     "react-dom": "^15.6.1",

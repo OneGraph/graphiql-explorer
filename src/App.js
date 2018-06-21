@@ -201,6 +201,7 @@ type State = {
   onegraphLoggedIn: ?boolean,
   githubLoggedIn: ?boolean,
   googleLoggedIn: ?boolean,
+  salesforceLoggedIn: ?boolean,
   stripeLoggedIn: ?boolean,
   twitterLoggedIn: ?boolean,
   sfdcLoggedIn: ?boolean,
@@ -243,6 +244,7 @@ class App extends React.Component<Props, State> {
       eventilLoggedIn: null,
       githubLoggedIn: null,
       googleLoggedIn: null,
+      salesforceLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
       onegraphLoggedIn: null,
@@ -305,6 +307,9 @@ class App extends React.Component<Props, State> {
     this._oneGraphAuth
       .isLoggedIn('google')
       .then(googleLoggedIn => this.setState({googleLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('salesforce')
+      .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('stripe')
       .then(stripeLoggedIn => this.setState({stripeLoggedIn}));
@@ -539,6 +544,12 @@ class App extends React.Component<Props, State> {
                     service="google"
                     onAuthResponse={this._fetchAuth}
                     isSignedIn={this.state.googleLoggedIn}
+                  />
+                  <LoginButton
+                    oneGraphAuth={this._oneGraphAuth}
+                    service="salesforce"
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={this.state.salesforceLoggedIn}
                   />
                   <LoginButton
                     oneGraphAuth={this._oneGraphAuth}
