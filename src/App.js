@@ -11,7 +11,9 @@ import {getPath} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
-import Search from './Search';
+
+// Remove search until we have a way to search public queries
+// import Search from './Search';
 
 import type {AuthResponse, Service} from 'onegraph-auth';
 
@@ -174,18 +176,19 @@ const appsQuery = `
   }
 `;
 
-const searchQueriesQuery = `
-  query searchQueries($query: String!) {
-    oneGraph {
-      searchQueries(query: $query) {
-        name
-        description
-        body
-        public
-      }
-    }
-  }
-`;
+// Remove search until we have a way to search public queries
+// const searchQueriesQuery = `
+//   query searchQueries($query: String!) {
+//     oneGraph {
+//       searchQueries(query: $query) {
+//         name
+//         description
+//         body
+//         public
+//       }
+//     }
+//   }
+// `;
 
 type Props = {};
 type State = {
