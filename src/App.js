@@ -17,6 +17,8 @@ import prettyPrint from './prettyPrint';
 
 import type {AuthResponse, Service} from 'onegraph-auth';
 
+type AppDetails = {name: string, id: string};
+
 function windowParams() {
   const params = {};
   const searchParams = new URL(window.location.href).searchParams;
@@ -206,7 +208,7 @@ type State = {
   activeApp: {id: string, name: string},
 };
 
-const DEFAULT_APP = {
+const DEFAULT_APP: AppDetails = {
   name: 'onegraphiql',
   id: Config.appId,
 };
@@ -225,7 +227,7 @@ class App extends React.Component<Props, State> {
   _storage = new StorageAPI();
   _oneGraphAuth: OneGraphAuth;
   _showBetaSchema: boolean;
-  _defaultApp: {id: string, name: string};
+  _defaultApp: AppDetails;
   graphiql: GraphiQL;
 
   constructor(props: Props) {
@@ -286,15 +288,15 @@ class App extends React.Component<Props, State> {
     };
   };
 
-  _makeStorageKey(activeApp, key) {
+  _makeStorageKey(activeApp: AppDetails, key: string) {
     return activeApp.id + ':' + key;
   }
 
-  _setStorage = (key, value) => {
+  _setStorage = (key: string, value: string | boolean) => {
     this._storage.set(this._makeStorageKey(this.state.activeApp, key), value);
   };
 
-  _getStorage = key => {
+  _getStorage = (key: string): string | boolean => {
     return this._storage.get(this._makeStorageKey(this.state.activeApp, key));
   };
 
