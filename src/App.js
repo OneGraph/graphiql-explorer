@@ -7,7 +7,7 @@ import '@onegraph/graphiql/graphiql.css';
 import Graphitree from './graphitree';
 import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
-import {getPath} from './utils';
+import {getPath, debounce} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
@@ -17,36 +17,20 @@ import prettyPrint from './prettyPrint';
 
 import type {AuthResponse, Service} from 'onegraph-auth';
 
-function windowParams() {
-  const parameters = {};
-  window.location.search
-    .substr(1)
-    .split('&')
-    .forEach(function(entry) {
-      const eq = entry.indexOf('=');
-      if (eq >= 0) {
-        parameters[decodeURIComponent(entry.slice(0, eq))] = decodeURIComponent(
-          entry.slice(eq + 1),
-        );
-      }
-    });
-  return parameters;
-}
+type AppDetails = {name: string, id: string};
 
-// Produce a Location query string from a parameter object.
-function locationQuery(params) {
-  return (
-    '?' +
-    Object.keys(params)
-      .map(
-        key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]),
-      )
-      .join('&')
-  );
+function windowParams() {
+  const params = {};
+  const searchParams = new URL(window.location.href).searchParams;
+  for (const key of searchParams.keys()) {
+    params[key] = decodeURIComponent(searchParams.get(key));
+  }
+  return params;
 }
 
 const BETA_SCHEMA_STORAGE_KEY = 'onegraph:showBetaSchema';
 const EXPLORER_STORAGE_KEY = 'onegraph:showExplorer';
+const PARAMS_STORAGE_KEY = 'onegraph:params';
 
 // Defines a GraphQL fetcher using the fetch API.
 function graphQLFetcher(
@@ -88,15 +72,25 @@ function graphQLFetcher(
 }
 
 function updateURL(params) {
-  const queryParam = locationQuery(params);
+  const url = new URL(window.location.href);
+  const searchParams = url.searchParams;
+  for (const param of Object.keys(params)) {
+    const value = params[param];
+    if (value == null) {
+      searchParams.delete(param);
+    } else {
+      searchParams.set(param, encodeURIComponent(value));
+    }
+  }
+  const queryParam = searchParams.toString();
   if (queryParam.length < 15000) {
-    window.history.replaceState(null, null, queryParam);
+    window.history.replaceState(null, null, url.pathname + '?' + queryParam);
   }
 }
 
 function handleGQLExplorerUpdated(editor, query) {
   const {parse, print} = require('graphql');
-  var prettyText = query;
+  let prettyText = query;
   try {
     prettyText = print(parse(query));
   } catch (e) {}
@@ -195,7 +189,6 @@ type State = {
   apps: Array<{id: string, name: string}>,
   query: string,
   variables: string,
-  params: Object,
   explorerIsOpen: boolean,
   rawSchema: ?Object,
   schema: ?Object,
@@ -215,7 +208,7 @@ type State = {
   activeApp: {id: string, name: string},
 };
 
-const DEFAULT_APP = {
+const DEFAULT_APP: AppDetails = {
   name: 'onegraphiql',
   id: Config.appId,
 };
@@ -230,19 +223,19 @@ function getAppFromURL(): ?{id: string, name: string} {
 }
 
 class App extends React.Component<Props, State> {
+  _params: {query: string, variables: string, operationName: string};
   _storage = new StorageAPI();
   _oneGraphAuth: OneGraphAuth;
   _showBetaSchema: boolean;
-  _params: Object;
-  _defaultApp: {id: string, name: string};
+  _defaultApp: AppDetails;
   graphiql: GraphiQL;
 
   constructor(props: Props) {
     super(props);
-    const params = windowParams();
     this._showBetaSchema = !!this._storage.get(BETA_SCHEMA_STORAGE_KEY);
     const appFromURL = getAppFromURL();
     this._defaultApp = appFromURL || DEFAULT_APP;
+    this._params = this._getInitialParams();
     this.state = {
       eventilLoggedIn: null,
       githubLoggedIn: null,
@@ -254,15 +247,12 @@ class App extends React.Component<Props, State> {
       sfdcLoggedIn: null,
       twilioLoggedIn: null,
       zendeskLoggedIn: null,
-      query: params.query
-        ? decodeURIComponent(params.query)
-        : defaultQuery(this._showBetaSchema),
-      variables: params.variables ? decodeURIComponent(params.variables) : '',
-      operationName: params.operationName
-        ? decodeURIComponent(params.operationName)
-        : '',
-      explorerIsOpen: this._storage.get(EXPLORER_STORAGE_KEY),
-      params,
+      query: this._params.query,
+      variables: this._params.variables,
+      operationName: this._params.operationName,
+      explorerIsOpen: this._storage.get(
+        this._makeStorageKey(this._defaultApp, EXPLORER_STORAGE_KEY),
+      ),
       selectedNodes: new Set([]),
       queryResultMessage: 'Request time: -ms',
       rawSchema: null,
@@ -270,15 +260,53 @@ class App extends React.Component<Props, State> {
       apps: [this._defaultApp],
       activeApp: this._defaultApp,
     };
-    this._params = params;
     this._resetAuths(this._defaultApp.id);
   }
+
+  _getInitialParams = () => {
+    let storedParams = {};
+    try {
+      storedParams =
+        JSON.parse(
+          this._storage.get(
+            this._makeStorageKey(this._defaultApp, PARAMS_STORAGE_KEY),
+          ),
+        ) || {};
+    } catch (e) {
+      console.error('error fetching params from storage', e);
+    }
+    const urlParams = windowParams();
+    return {
+      query:
+        urlParams.query ||
+        storedParams.query ||
+        urlParams.defaultQuery ||
+        defaultQuery(this._showBetaSchema),
+      variables: urlParams.variables || storedParams.variables || '',
+      operationName:
+        urlParams.operationName || storedParams.operationName || '',
+    };
+  };
+
+  _makeStorageKey(activeApp: AppDetails, key: string) {
+    return activeApp.id + ':' + key;
+  }
+
+  _setStorage = (key: string, value: string | boolean) => {
+    this._storage.set(this._makeStorageKey(this.state.activeApp, key), value);
+  };
+
+  _getStorage = (key: string): string | boolean => {
+    return this._storage.get(this._makeStorageKey(this.state.activeApp, key));
+  };
+
   _resetAuths = (appId: string) => {
     this._oneGraphAuth = new OneGraphAuth({
       oneGraphOrigin: Config.oneGraphOrigin,
       appId,
     });
   };
+
   _graphQLFetch = (params: Object): Object => {
     return graphQLFetcher(
       Config.fetchUrl,
@@ -376,30 +404,36 @@ class App extends React.Component<Props, State> {
 
   _keyboardEventHandler = (event: KeyboardEvent) => {
     if (event.ctrlKey && event.altKey && event.keyCode === 66) {
-      this._storage.set(
+      this._setStorage(
         BETA_SCHEMA_STORAGE_KEY,
         !this._storage.get(BETA_SCHEMA_STORAGE_KEY),
       );
       window.location = window.location;
     }
   };
-  setParam = (param: string, value: string) => {
-    this._params[param] = value;
+  storeParamsStar = (param: string, value: string) => {
+    this._setStorage(PARAMS_STORAGE_KEY, JSON.stringify(this._params));
     updateURL(this._params);
   };
+
+  storeParams = debounce(this.storeParamsStar, 300);
+
   onEditQuery = (newQuery: string) => {
     this.setState({
       query: newQuery,
     });
-    this.setParam('query', newQuery);
+    this._params.query = newQuery;
+    this.storeParams();
   };
   onEditVariables = (variables: string) => {
     this.setState({variables});
-    this.setParam('variables', variables);
+    this._params.variables = variables;
+    this.storeParams();
   };
   onEditOperationName = (operationName: string) => {
     this.setState({operationName});
-    this.setParam('operationName', operationName);
+    this._params.operationName = operationName;
+    this.storeParams();
   };
   toggleExplorer = () => {
     this.setState(
@@ -408,10 +442,17 @@ class App extends React.Component<Props, State> {
           explorerIsOpen: !currentState.explorerIsOpen,
         };
       },
-      args =>
-        this._storage.set(EXPLORER_STORAGE_KEY, this.state.explorerIsOpen),
+      args => this._setStorage(EXPLORER_STORAGE_KEY, this.state.explorerIsOpen),
     );
   };
+  _exportQuery = () => {
+    const shareUrl = new URL(window.location.href);
+    for (const param of Object.keys(this._params)) {
+      shareUrl.searchParams.set(param, encodeURIComponent(this._params[param]));
+    }
+    prompt('Copy the URL to share', shareUrl.toString());
+  };
+
   _appSelector = () => {
     const {activeApp, apps} = this.state;
     return (
@@ -576,6 +617,11 @@ class App extends React.Component<Props, State> {
                   isSignedIn={this.state.zendeskLoggedIn}
                 />
               </GraphiQL.Menu>
+              <GraphiQL.Button
+                onClick={this._exportQuery}
+                label="Share Query"
+                title="Get a url for this query in GraphiQL"
+              />
               {/*
                   Remove app selector until we have a way to authenticate to OneGraph from graphiql
                   {this._appSelector()}
