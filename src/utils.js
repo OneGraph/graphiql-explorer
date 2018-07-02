@@ -23,4 +23,20 @@ var setPath = function(obj, keys, terminalValue) {
   return obj;
 };
 
-export {getPath, setPath};
+function debounce(func: Function, wait: number){
+  let timeout;
+
+  const debounced = function(){
+    const context = this;
+    const args = arguments;
+
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func.apply(context, args);
+    }, wait);
+  };
+
+  return debounced;
+};
+
+export {getPath, setPath, debounce};
