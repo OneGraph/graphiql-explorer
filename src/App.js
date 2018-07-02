@@ -279,7 +279,7 @@ class App extends React.Component<Props, State> {
   _graphQLFetch = (params: Object): Object => {
     return graphQLFetcher(
       Config.fetchUrl,
-      params.appId || this.state.activeApp.id,
+      this.state.activeApp.id,
       this._showBetaSchema,
       this._oneGraphAuth,
       params,
@@ -446,135 +446,139 @@ class App extends React.Component<Props, State> {
 
   render() {
     return (
-      <div>
+      <div
+        className="graphiql-container"
+        style={{
+          height: '100%',
+          display: 'flex',
+        }}>
         <div
-          className="graphiql-container"
+          className="historyPaneWrap"
           style={{
-            height: '100vh',
-            display: 'flex',
+            height: '100%',
+            width: '230px',
+            zIndex: 7,
+            display: this.state.explorerIsOpen ? 'block' : 'none',
           }}>
-          <div
-            className="historyPaneWrap"
-            style={{
-              height: '100vh',
-              width: '230px',
-              zIndex: 7,
-              display: this.state.explorerIsOpen ? 'block' : 'none',
-            }}>
-            <div className="history-title-bar">
-              <div className="history-title">Explorer</div>
-              <div className="doc-explorer-rhs">
-                <div className="docExplorerHide" onClick={this.toggleExplorer}>
-                  {'\u2715'}
-                </div>
+          <div className="history-title-bar">
+            <div className="history-title">Explorer</div>
+            <div className="doc-explorer-rhs">
+              <div className="docExplorerHide" onClick={this.toggleExplorer}>
+                {'\u2715'}
               </div>
             </div>
-            <div className="history-contents">
-              {this.state.schema ? (
-                <Graphitree
-                  onQueryChange={query => {
-                    if (!!this.graphiql) {
-                      handleGQLExplorerUpdated(
-                        this.graphiql.getQueryEditor(),
-                        query,
-                      );
-                    }
-                  }}
-                  rawSchema={this.state.rawSchema}
-                  selectedNodes={this.state.selectedNodes}
-                />
-              ) : null}
-            </div>
           </div>
-          <div
-            style={{
-              width: this.state.explorerIsOpen
-                ? 'calc(100vw - 230px)'
-                : '100vw',
-            }}>
-            <GraphiQL
-              ref={c => (this.graphiql = c)}
-              fetcher={this._graphiqlFetch}
-              onEditQuery={this.onEditQuery}
-              onEditVariables={this.onEditVariables}
-              onEditOperationName={this.onEditOperationName}
-              query={this.state.query}
-              variables={this.state.variables}
-              operationName={this.state.operationName}
-              schema={this.state.schema}>
-              <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
-              <GraphiQL.Toolbar>
-                <GraphiQL.Button
-                  onClick={this.handlePrettifyQuery}
-                  label="Prettify"
-                  title="Prettify Query (Shift-Ctrl-P)"
-                />
-                <GraphiQL.Button
-                  onClick={() => this.graphiql.handleToggleHistory()}
-                  title="Show History"
-                  label="History"
-                />
-                <GraphiQL.Button
-                  onClick={this.toggleExplorer}
-                  label="Explorer"
-                  title="Toggle Explorer"
-                />
-                <GraphiQL.Menu label="Authentication" title="Authentication">
-                  {/*
+          <div className="history-contents">
+            {this.state.schema ? (
+              <Graphitree
+                onQueryChange={query => {
+                  if (!!this.graphiql) {
+                    handleGQLExplorerUpdated(
+                      this.graphiql.getQueryEditor(),
+                      query,
+                    );
+                  }
+                }}
+                rawSchema={this.state.rawSchema}
+                selectedNodes={this.state.selectedNodes}
+              />
+            ) : null}
+          </div>
+        </div>
+        <div
+          style={{
+            width: this.state.explorerIsOpen ? 'calc(100% - 230px)' : '100%',
+          }}>
+          <GraphiQL
+            ref={c => (this.graphiql = c)}
+            fetcher={this._graphiqlFetch}
+            onEditQuery={this.onEditQuery}
+            onEditVariables={this.onEditVariables}
+            onEditOperationName={this.onEditOperationName}
+            query={this.state.query}
+            variables={this.state.variables}
+            operationName={this.state.operationName}
+            schema={this.state.schema}>
+            <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
+            <GraphiQL.Toolbar>
+              <GraphiQL.Button
+                onClick={this.handlePrettifyQuery}
+                label="Prettify"
+                title="Prettify Query (Shift-Ctrl-P)"
+              />
+              <GraphiQL.Button
+                onClick={() => this.graphiql.handleToggleHistory()}
+                title="Show History"
+                label="History"
+              />
+              <GraphiQL.Button
+                onClick={this.toggleExplorer}
+                label="Explorer"
+                title="Toggle Explorer"
+              />
+              <GraphiQL.Menu label="Authentication" title="Authentication">
+                {/*
                _devTimeLoginButtonForNewAuthService(
                'Zendesk',
                this.state.zendeskLoggedIn,
                Config.authUrl('zendesk'),
                )
              */}
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="eventil"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.eventilLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="github"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.githubLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="google"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.googleLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="salesforce"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.salesforceLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="stripe"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.stripeLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="twilio"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.twilioLoggedIn}
-                  />
-                  <LoginButton
-                    oneGraphAuth={this._oneGraphAuth}
-                    service="twitter"
-                    onAuthResponse={this._fetchAuth}
-                    isSignedIn={this.state.twitterLoggedIn}
-                  />
-                </GraphiQL.Menu>
-                {/*
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="eventil"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.eventilLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="github"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.githubLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="google"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.googleLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="salesforce"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.salesforceLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="stripe"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.stripeLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="twilio"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.twilioLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="twitter"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.twitterLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="zendesk"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.zendeskLoggedIn}
+                />
+              </GraphiQL.Menu>
+              {/*
                   Remove app selector until we have a way to authenticate to OneGraph from graphiql
                   {this._appSelector()}
                    */}
 
+              {/* Remove search until we have a way to search public queries
                 <Search
                   placeholder={'Search queries...'}
                   onSuggestionSelected={(
@@ -606,32 +610,31 @@ class App extends React.Component<Props, State> {
                       cb(result);
                     });
                   }}
-                />
-              </GraphiQL.Toolbar>
-              <GraphiQL.Footer>
-                <div
-                  style={{
-                    display: 'flex',
-                    height: '3em',
-                    alignItems: 'center',
-                    paddingLeft: '1em',
-                  }}>
-                  {this.state.schema ? (
-                    this.state.queryResultMessage
-                  ) : (
-                    <div>
-                      <div className="inline-spinner">
-                        <div className="spinner-container">
-                          <div className="spinner" />
-                        </div>
+                /> */}
+            </GraphiQL.Toolbar>
+            <GraphiQL.Footer>
+              <div
+                style={{
+                  display: 'flex',
+                  height: '3em',
+                  alignItems: 'center',
+                  paddingLeft: '1em',
+                }}>
+                {this.state.schema ? (
+                  this.state.queryResultMessage
+                ) : (
+                  <div>
+                    <div className="inline-spinner">
+                      <div className="spinner-container">
+                        <div className="spinner" />
                       </div>
-                      Loading schema...
                     </div>
-                  )}
-                </div>
-              </GraphiQL.Footer>
-            </GraphiQL>
-          </div>
+                    Loading schema...
+                  </div>
+                )}
+              </div>
+            </GraphiQL.Footer>
+          </GraphiQL>
         </div>
       </div>
     );
