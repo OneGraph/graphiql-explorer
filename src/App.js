@@ -196,7 +196,7 @@ type State = {
   queryResultMessage: string,
   onegraphLoggedIn: ?boolean,
   githubLoggedIn: ?boolean,
-  googleLoggedIn: ?boolean,
+  youtubeLoggedIn: ?boolean,
   salesforceLoggedIn: ?boolean,
   stripeLoggedIn: ?boolean,
   twitterLoggedIn: ?boolean,
@@ -239,7 +239,7 @@ class App extends React.Component<Props, State> {
     this.state = {
       eventilLoggedIn: null,
       githubLoggedIn: null,
-      googleLoggedIn: null,
+      youtubeLoggedIn: null,
       salesforceLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
@@ -336,8 +336,8 @@ class App extends React.Component<Props, State> {
       .isLoggedIn('github')
       .then(githubLoggedIn => this.setState({githubLoggedIn}));
     this._oneGraphAuth
-      .isLoggedIn('google')
-      .then(googleLoggedIn => this.setState({googleLoggedIn}));
+      .isLoggedIn('youtube')
+      .then(youtubeLoggedIn => this.setState({youtubeLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('salesforce')
       .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
@@ -582,9 +582,9 @@ class App extends React.Component<Props, State> {
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
-                  service="google"
+                  service="youtube"
                   onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.googleLoggedIn}
+                  isSignedIn={this.state.youtubeLoggedIn}
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
