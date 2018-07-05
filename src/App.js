@@ -127,6 +127,14 @@ const _devTimeLoginButtonForNewAuthService = (service, isSignedIn, href) => {
   );
 };
 
+const PROD_SERVICES = new Set([
+  'stripe',
+  'github',
+  'eventil',
+  'zendesk',
+  'salesforce',
+]);
+
 class LoginButton extends React.Component<
   LoginButtonProps,
   {loading: boolean},
@@ -150,7 +158,10 @@ class LoginButton extends React.Component<
     return (
       <GraphiQL.MenuItem
         key={serviceName}
-        label={(isSignedIn ? '\u2713 ' : 'Log in to ') + serviceName}
+        label={
+          (isSignedIn ? '\u2713 ' : 'Log in to ') +
+          (serviceName + (PROD_SERVICES.has(service) ? '' : ' (beta)'))
+        }
         disabled={this.state.loading || isSignedIn}
         title={serviceName}
         onSelect={this._onSelect}
@@ -609,6 +620,12 @@ class App extends React.Component<Props, State> {
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
+                  service="eventil"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.eventilLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
                   service="youtube"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.youtubeLoggedIn}
@@ -637,18 +654,11 @@ class App extends React.Component<Props, State> {
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.googleComputeLoggedIn}
                 />
-
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
                   service="google-docs"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.googleDocsLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="eventil"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.eventilLoggedIn}
                 />
               </GraphiQL.Menu>
               <GraphiQL.Button
