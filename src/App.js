@@ -127,6 +127,14 @@ const _devTimeLoginButtonForNewAuthService = (service, isSignedIn, href) => {
   );
 };
 
+const PROD_SERVICES = new Set([
+  'stripe',
+  'github',
+  'eventil',
+  'zendesk',
+  'salesforce',
+]);
+
 class LoginButton extends React.Component<
   LoginButtonProps,
   {loading: boolean},
@@ -150,7 +158,10 @@ class LoginButton extends React.Component<
     return (
       <GraphiQL.MenuItem
         key={serviceName}
-        label={(isSignedIn ? '\u2713 ' : 'Log in to ') + serviceName}
+        label={
+          (isSignedIn ? '\u2713 ' : 'Log in to ') +
+          (serviceName + (PROD_SERVICES.has(service) ? '' : ' (beta)'))
+        }
         disabled={this.state.loading || isSignedIn}
         title={serviceName}
         onSelect={this._onSelect}
@@ -195,7 +206,10 @@ type State = {
   selectedNodes: Object,
   queryResultMessage: string,
   onegraphLoggedIn: ?boolean,
+  gmailLoggedIn: ?boolean,
   githubLoggedIn: ?boolean,
+  googleComputeLoggedIn: ?boolean,
+  googleDocsLoggedIn: ?boolean,
   youtubeLoggedIn: ?boolean,
   salesforceLoggedIn: ?boolean,
   stripeLoggedIn: ?boolean,
@@ -238,7 +252,10 @@ class App extends React.Component<Props, State> {
     this._params = this._getInitialParams();
     this.state = {
       eventilLoggedIn: null,
+      gmailLoggedIn: null,
       githubLoggedIn: null,
+      googleComputeLoggedIn: null,
+      googleDocsLoggedIn: null,
       youtubeLoggedIn: null,
       salesforceLoggedIn: null,
       stripeLoggedIn: null,
@@ -338,6 +355,15 @@ class App extends React.Component<Props, State> {
     this._oneGraphAuth
       .isLoggedIn('youtube')
       .then(youtubeLoggedIn => this.setState({youtubeLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('gmail')
+      .then(gmailLoggedIn => this.setState({gmailLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('google-compute')
+      .then(googleComputeLoggedIn => this.setState({googleComputeLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('google-docs')
+      .then(googleDocsLoggedIn => this.setState({googleDocsLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('salesforce')
       .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
@@ -570,24 +596,6 @@ class App extends React.Component<Props, State> {
              */}
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
-                  service="eventil"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.eventilLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="github"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.githubLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="youtube"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.youtubeLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
                   service="salesforce"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.salesforceLoggedIn}
@@ -597,6 +605,36 @@ class App extends React.Component<Props, State> {
                   service="stripe"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.stripeLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="zendesk"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.zendeskLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="github"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.githubLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="eventil"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.eventilLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="youtube"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.youtubeLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="gmail"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.youtubeLoggedIn}
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
@@ -612,9 +650,15 @@ class App extends React.Component<Props, State> {
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
-                  service="zendesk"
+                  service="google-compute"
                   onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.zendeskLoggedIn}
+                  isSignedIn={this.state.googleComputeLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="google-docs"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.googleDocsLoggedIn}
                 />
               </GraphiQL.Menu>
               <GraphiQL.Button

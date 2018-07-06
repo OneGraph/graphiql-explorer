@@ -23,10 +23,10 @@ var setPath = function(obj, keys, terminalValue) {
   return obj;
 };
 
-function debounce(func: Function, wait: number){
+function debounce(func: Function, wait: number) {
   let timeout;
 
-  const debounced = function(){
+  const debounced = function() {
     const context = this;
     const args = arguments;
 
@@ -37,7 +37,7 @@ function debounce(func: Function, wait: number){
   };
 
   return debounced;
-};
+}
 
 function safeURIDecode(val) {
   try {
