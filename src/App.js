@@ -11,6 +11,7 @@ import {getPath, debounce, safeURIDecode} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
+import copy from 'copy-to-clipboard';
 
 // Remove search until we have a way to search public queries
 // import Search from './Search';
@@ -206,7 +207,10 @@ type State = {
   zendeskLoggedIn: ?boolean,
   operationName: string,
   activeApp: {id: string, name: string},
+  exportText: string,
 };
+
+const DEFAULT_EXPORT_TEXT = 'Share Query';
 
 const DEFAULT_APP: AppDetails = {
   name: 'onegraphiql',
@@ -259,6 +263,7 @@ class App extends React.Component<Props, State> {
       schema: null,
       apps: [this._defaultApp],
       activeApp: this._defaultApp,
+      exportText: DEFAULT_EXPORT_TEXT,
     };
     this._resetAuths(this._defaultApp.id);
   }
@@ -450,7 +455,15 @@ class App extends React.Component<Props, State> {
     for (const param of Object.keys(this._params)) {
       shareUrl.searchParams.set(param, encodeURIComponent(this._params[param]));
     }
-    prompt('Copy the URL to share', shareUrl.toString());
+    if (copy(shareUrl.toString())) {
+      this.setState({exportText: 'Copied to clipboard!'});
+      window.setTimeout(
+        () => this.setState({exportText: DEFAULT_EXPORT_TEXT}),
+        1000,
+      );
+    } else {
+      prompt('Copy the URL to share', shareUrl.toString());
+    }
   };
 
   _appSelector = () => {
@@ -619,7 +632,7 @@ class App extends React.Component<Props, State> {
               </GraphiQL.Menu>
               <GraphiQL.Button
                 onClick={this._exportQuery}
-                label="Share Query"
+                label={this.state.exportText}
                 title="Get a url for this query in GraphiQL"
               />
               {/*
