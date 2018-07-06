@@ -7,7 +7,7 @@ import '@onegraph/graphiql/graphiql.css';
 import Graphitree from './graphitree';
 import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
-import {getPath, debounce} from './utils';
+import {getPath, debounce, safeURIDecode} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
@@ -23,7 +23,7 @@ function windowParams() {
   const params = {};
   const searchParams = new URL(window.location.href).searchParams;
   for (const key of searchParams.keys()) {
-    params[key] = decodeURIComponent(searchParams.get(key));
+    params[key] = safeURIDecode(searchParams.get(key));
   }
   return params;
 }

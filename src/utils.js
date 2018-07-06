@@ -39,4 +39,12 @@ function debounce(func: Function, wait: number){
   return debounced;
 };
 
-export {getPath, setPath, debounce};
+function safeURIDecode(val) {
+  try {
+    return decodeURIComponent(val);
+  } catch (e) {
+    console.error('Error decoding uri component', val);
+  }
+}
+
+export {getPath, setPath, debounce, safeURIDecode};
