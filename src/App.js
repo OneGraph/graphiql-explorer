@@ -211,6 +211,7 @@ type State = {
   githubLoggedIn: ?boolean,
   googleComputeLoggedIn: ?boolean,
   googleDocsLoggedIn: ?boolean,
+  intercomLoggedIn: ?boolean,
   youtubeLoggedIn: ?boolean,
   salesforceLoggedIn: ?boolean,
   stripeLoggedIn: ?boolean,
@@ -260,6 +261,7 @@ class App extends React.Component<Props, State> {
       githubLoggedIn: null,
       googleComputeLoggedIn: null,
       googleDocsLoggedIn: null,
+      intercomLoggedIn: null,
       youtubeLoggedIn: null,
       salesforceLoggedIn: null,
       stripeLoggedIn: null,
@@ -369,6 +371,9 @@ class App extends React.Component<Props, State> {
     this._oneGraphAuth
       .isLoggedIn('google-docs')
       .then(googleDocsLoggedIn => this.setState({googleDocsLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('intercom')
+      .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('salesforce')
       .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
@@ -624,6 +629,12 @@ class App extends React.Component<Props, State> {
                   service="zendesk"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.zendeskLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="intercom"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.intercomLoggedIn}
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
