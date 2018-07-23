@@ -6,6 +6,7 @@
     "@onegraph/graphiql": "^0.11.11",
     "copy-to-clipboard": "^3.0.8",
     "graphql": "^0.13.2",
+    "graphql-language-service-interface": "^1.2.2",
     "onegraph-auth": "0.2.11",
     "react": "^15.6.1",
     "react-autosuggest": "^9.3.4",
@@ -22,15 +23,14 @@
   },
   "devDependencies": {
     "bs-platform": "^3.1.5",
-    "flow-bin": "^0.74.0",
+    "flow-bin": "^0.77.0",
+    "npm-run-all": "^4.1.2",
     "prettier": "^1.13.5",
-    "react-scripts": "^1.1.4",
-    "npm-run-all": "^4.1.2"
+    "react-scripts": "^1.1.4"
   },
   "scripts": {
     "start-js": "react-scripts start",
-    "build-js":
-      "export REACT_APP_GIT_SHA=`git rev-parse HEAD` && react-scripts build",
+    "build-js": "export REACT_APP_GIT_SHA=`git rev-parse HEAD` && react-scripts build",
     "start": "npm-run-all -p start-js watch-reason",
     "build": "npm-run-all build-js",
     "bsb-w": "bsb -make-world -w",
@@ -49,6 +49,11 @@
       "last 2 firefox versions",
       "last 2 edge versions"
     ],
-    "production": [">1%", "last 4 versions", "Firefox ESR", "not ie < 11"]
+    "production": [
+      ">1%",
+      "last 4 versions",
+      "Firefox ESR",
+      "not ie < 11"
+    ]
   }
 }
