@@ -67,7 +67,7 @@ html, body {
   color: yellow;
 }
 
-.graphitree {
+.graphiql-explorer {
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;

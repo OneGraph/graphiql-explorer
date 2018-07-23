@@ -4,7 +4,6 @@ import React from 'react';
 import GraphiQL from '@onegraph/graphiql';
 import StorageAPI from '@onegraph/graphiql/dist/utility/StorageAPI';
 import '@onegraph/graphiql/graphiql.css';
-import Graphitree from './graphitree';
 import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
 import {getPath, debounce, safeURIDecode} from './utils';
@@ -12,11 +11,11 @@ import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
 import copy from 'copy-to-clipboard';
-
+import type {AuthResponse, Service} from 'onegraph-auth';
+import './App.css';
+const Explorer = require('./explorer/explorer.bs').explorer;
 // Remove search until we have a way to search public queries
 // import Search from './Search';
-
-import type {AuthResponse, Service} from 'onegraph-auth';
 
 type AppDetails = {name: string, id: string};
 
@@ -87,15 +86,6 @@ function updateURL(params) {
   if (queryParam.length < 15000) {
     window.history.replaceState(null, null, url.pathname + '?' + queryParam);
   }
-}
-
-function handleGQLExplorerUpdated(editor, query) {
-  const {parse, print} = require('graphql');
-  let prettyText = query;
-  try {
-    prettyText = print(parse(query));
-  } catch (e) {}
-  editor.setValue(prettyText);
 }
 
 type LoginButtonProps = {
@@ -181,20 +171,6 @@ const appsQuery = `
     }
   }
 `;
-
-// Remove search until we have a way to search public queries
-// const searchQueriesQuery = `
-//   query searchQueries($query: String!) {
-//     oneGraph {
-//       searchQueries(query: $query) {
-//         name
-//         description
-//         body
-//         public
-//       }
-//     }
-//   }
-// `;
 
 type Props = {};
 type State = {
@@ -375,6 +351,9 @@ class App extends React.Component<Props, State> {
       .isLoggedIn('intercom')
       .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
     this._oneGraphAuth
+      .isLoggedIn('intercom')
+      .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
+    this._oneGraphAuth
       .isLoggedIn('salesforce')
       .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
     this._oneGraphAuth
@@ -416,8 +395,9 @@ class App extends React.Component<Props, State> {
     }).then(result => {
       if (result.data) {
         this.setState(currentState => {
+          const schema = buildClientSchema(result.data);
           return {
-            schema: buildClientSchema(result.data),
+            schema: schema,
             rawSchema: result.data,
           };
         });
@@ -481,21 +461,6 @@ class App extends React.Component<Props, State> {
       args => this._setStorage(EXPLORER_STORAGE_KEY, this.state.explorerIsOpen),
     );
   };
-  _exportQuery = () => {
-    const shareUrl = new URL(window.location.href);
-    for (const param of Object.keys(this._params)) {
-      shareUrl.searchParams.set(param, encodeURIComponent(this._params[param]));
-    }
-    if (copy(shareUrl.toString())) {
-      this.setState({exportText: 'Copied to clipboard!'});
-      window.setTimeout(
-        () => this.setState({exportText: DEFAULT_EXPORT_TEXT}),
-        1000,
-      );
-    } else {
-      prompt('Copy the URL to share', shareUrl.toString());
-    }
-  };
 
   _appSelector = () => {
     const {activeApp, apps} = this.state;
@@ -532,6 +497,30 @@ class App extends React.Component<Props, State> {
     }
   };
 
+  handleExplorerUpdated = (value: string) => {
+    try {
+      this.onEditQuery(prettyPrint(value));
+    } catch (e) {
+      this.onEditQuery(value);
+    }
+  };
+
+  _exportQuery = () => {
+    const shareUrl = new URL(window.location.href);
+    for (const param of Object.keys(this._params)) {
+      shareUrl.searchParams.set(param, encodeURIComponent(this._params[param]));
+    }
+    if (copy(shareUrl.toString())) {
+      this.setState({exportText: 'Copied to clipboard!'});
+      window.setTimeout(
+        () => this.setState({exportText: DEFAULT_EXPORT_TEXT}),
+        1000,
+      );
+    } else {
+      prompt('Copy the URL to share', shareUrl.toString());
+    }
+  };
+
   render() {
     return (
       <div
@@ -558,17 +547,11 @@ class App extends React.Component<Props, State> {
           </div>
           <div className="history-contents">
             {this.state.schema ? (
-              <Graphitree
-                onQueryChange={query => {
-                  if (!!this.graphiql) {
-                    handleGQLExplorerUpdated(
-                      this.graphiql.getQueryEditor(),
-                      query,
-                    );
-                  }
-                }}
-                rawSchema={this.state.rawSchema}
-                selectedNodes={this.state.selectedNodes}
+              <Explorer
+                queryText={this.state.query}
+                clientSchema={this.state.schema}
+                debounceMs={250}
+                onEdit={this.handleExplorerUpdated}
               />
             ) : null}
           </div>
@@ -605,13 +588,6 @@ class App extends React.Component<Props, State> {
                 title="Toggle Explorer"
               />
               <GraphiQL.Menu label="Authentication" title="Authentication">
-                {/*
-               _devTimeLoginButtonForNewAuthService(
-               'Zendesk',
-               this.state.zendeskLoggedIn,
-               Config.authUrl('zendesk'),
-               )
-             */}
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
                   service="salesforce"

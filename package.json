@@ -11,7 +11,8 @@
     "react-autosuggest": "^9.3.4",
     "react-dom": "^15.6.1",
     "react-highlight-words": "^0.11.0",
-    "react-treeview": "^0.4.7"
+    "react-treeview": "^0.4.7",
+    "reason-react": ">=0.3.4"
   },
   "prettier": {
     "singleQuote": true,
@@ -20,17 +21,27 @@
     "jsxBracketSameLine": true
   },
   "devDependencies": {
+    "bs-platform": "^3.1.5",
     "flow-bin": "^0.74.0",
     "prettier": "^1.13.5",
-    "react-scripts": "^1.1.4"
+    "react-scripts": "^1.1.4",
+    "npm-run-all": "^4.1.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start-js": "react-scripts start",
+    "build-js":
+      "export REACT_APP_GIT_SHA=`git rev-parse HEAD` && react-scripts build",
+    "start": "npm-run-all -p start-js watch-reason",
+    "build": "npm-run-all build-js",
+    "bsb-w": "bsb -make-world -w",
+    "bsb": "bsb -make-world",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
     "prettier": "prettier --write \"src/**/*.js\"",
-    "flow": "flow"
+    "flow": "flow",
+    "build-reason": "bsb -make-world -clean-world",
+    "watch-reason": "bsb -make-world -clean-world -w",
+    "postinstall": "yarn run build-reason"
   },
   "browserslist": {
     "development": [
@@ -38,11 +49,6 @@
       "last 2 firefox versions",
       "last 2 edge versions"
     ],
-    "production": [
-      ">1%",
-      "last 4 versions",
-      "Firefox ESR",
-      "not ie < 11"
-    ]
+    "production": [">1%", "last 4 versions", "Firefox ESR", "not ie < 11"]
   }
 }

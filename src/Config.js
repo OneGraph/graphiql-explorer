@@ -1,8 +1,6 @@
 // @flow
 const DEV = process.env.NODE_ENV === 'development';
 
-const DEV_SSL = process.env.REACT_APP_DEV_SSL === 'true';
-
 const appId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
 
 const sandboxId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
@@ -10,11 +8,7 @@ const sandboxId = '0b33e830-7cde-4b90-ad7e-2a39c57c0e11';
 const baseUrl = new URL('https://serve.onegraph.com');
 
 if (DEV) {
-  if (!DEV_SSL) {
-    baseUrl.protocol = 'http:';
-  }
   baseUrl.hostname = 'serve.onegraph.io';
-  baseUrl.port = '8082';
 }
 
 const fetchUrl = new URL(baseUrl.toString());

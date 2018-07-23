@@ -17,6 +17,9 @@ jobs:
           paths:
             - node_modules
       - run:
+          name: 'bsb (reason)'
+          command: yarn bsb
+      - run:
           name: 'flow'
           command: yarn flow
       - run:
