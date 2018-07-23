@@ -3082,9 +3082,9 @@ flatten@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/flatten/-/flatten-1.0.2.tgz#dae46a9d78fbe25292258cc1e780a41d95c03782"
 
-flow-bin@^0.74.0:
-  version "0.74.0"
-  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.74.0.tgz#8017bb00efb37cbe8d81fbb7f464038bde06adc9"
+flow-bin@^0.77.0:
+  version "0.77.0"
+  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.77.0.tgz#4e5c93929f289a0c28e08fb361a9734944a11297"
 
 for-in@^1.0.1, for-in@^1.0.2:
   version "1.0.2"
@@ -3359,6 +3359,15 @@ graphql-language-service-interface@^1.0.18:
     graphql-language-service-types "^1.2.1"
     graphql-language-service-utils "^1.2.1"
 
+graphql-language-service-interface@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/graphql-language-service-interface/-/graphql-language-service-interface-1.2.2.tgz#e56cf7af82b3cf029e535dadf73bc7c4151b670e"
+  dependencies:
+    graphql-config "2.0.1"
+    graphql-language-service-parser "^1.2.2"
+    graphql-language-service-types "^1.2.2"
+    graphql-language-service-utils "^1.2.2"
+
 graphql-language-service-parser@^1.0.18, graphql-language-service-parser@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/graphql-language-service-parser/-/graphql-language-service-parser-1.1.0.tgz#fb425235a78c4ecefc6094d86533c6376dc5fd2b"
@@ -3366,9 +3375,22 @@ graphql-language-service-parser@^1.0.18, graphql-language-service-parser@^1.1.0:
     graphql-config "1.1.4"
     graphql-language-service-types "^1.1.0"
 
+graphql-language-service-parser@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/graphql-language-service-parser/-/graphql-language-service-parser-1.2.2.tgz#010c8a5fdfae4726c8e15714137eee822753d3ea"
+  dependencies:
+    graphql-config "2.0.1"
+    graphql-language-service-types "^1.2.2"
+
 graphql-language-service-types@^1.1.0, graphql-language-service-types@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/graphql-language-service-types/-/graphql-language-service-types-1.2.1.tgz#4b63c1b7346a190b93b2dcc61d796bd865a68e72"
+  dependencies:
+    graphql-config "2.0.1"
+
+graphql-language-service-types@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/graphql-language-service-types/-/graphql-language-service-types-1.2.2.tgz#078e0abc7936a593968c946a039502af136a9743"
   dependencies:
     graphql-config "2.0.1"
 
@@ -3378,6 +3400,13 @@ graphql-language-service-utils@^1.2.1:
   dependencies:
     graphql-config "2.0.1"
     graphql-language-service-types "^1.2.1"
+
+graphql-language-service-utils@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/graphql-language-service-utils/-/graphql-language-service-utils-1.2.2.tgz#d31d4b4288085bd31d1bb8efc35790d69e496cae"
+  dependencies:
+    graphql-config "2.0.1"
+    graphql-language-service-types "^1.2.2"
 
 graphql-request@^1.4.0, graphql-request@^1.5.0:
   version "1.6.0"

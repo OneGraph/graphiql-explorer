@@ -6,6 +6,8 @@ import StorageAPI from '@onegraph/graphiql/dist/utility/StorageAPI';
 import '@onegraph/graphiql/graphiql.css';
 import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
+// $FlowFixMe: flow doesn't like graphql-language-service-interface
+import {getDiagnostics} from 'graphql-language-service-interface';
 import {getPath, debounce, safeURIDecode} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
@@ -317,6 +319,30 @@ class App extends React.Component<Props, State> {
     );
   };
 
+  _queryError = (query: string) => {
+    const {schema} = this.state;
+    if (!schema) {
+      return;
+    }
+    const errors = getDiagnostics(query, schema).filter(
+      diag => diag.severity === 1,
+    );
+    console.log('errors', errors);
+    if (errors.length) {
+      return {
+        errors: errors.map(error => ({
+          message: error.message,
+          locations: [
+            {
+              line: error.range.start.line + 1,
+              column: error.range.start.character + 1,
+            },
+          ],
+        })),
+      };
+    }
+  };
+
   _graphiqlFetch = (params: Object): Object => {
     const startTs = Date.now();
     return this._graphQLFetch(params).then(result => {
@@ -324,6 +350,10 @@ class App extends React.Component<Props, State> {
         queryResultMessage:
           'Request time: ' + ((Date.now() - startTs) | 0) + 'ms',
       });
+      // Replace server error with what graphql-js would produce
+      if (result.errors && this._queryError(params.query)) {
+        return this._queryError(params.query);
+      }
       return result;
     });
   };
