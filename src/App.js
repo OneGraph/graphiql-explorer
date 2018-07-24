@@ -123,6 +123,7 @@ const _devTimeLoginButtonForNewAuthService = (service, isSignedIn, href) => {
 const PROD_SERVICES = new Set([
   'stripe',
   'github',
+  'intercom',
   'eventil',
   'zendesk',
   'salesforce',
