@@ -94,10 +94,17 @@ let renderScalar = (~ctx: ctx, ~fieldPath, ~argPath, ~typ, checked, ()) => {
         }
       )
       checked=(
-        ctx.getArgValue(fieldPath, argPath)
-        |> Option.default("false")
-        |> bool_of_string
-      )
+                /* The user may have typed something other than true/false as
+                   the arg value, so it'll be present (Some), but not boolean-able
+                   */
+                try (
+                  ctx.getArgValue(fieldPath, argPath)
+                  |> Option.default("false")
+                  |> bool_of_string
+                ) {
+                | Invalid_argument(_msg) => false
+                }
+              )
     />
   };
 };

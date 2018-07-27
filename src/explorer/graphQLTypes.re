@@ -1,6 +1,22 @@
 [@bs.module "../prettyPrint"]
 external prettyPrint : string => string = "default";
 
+let stringification:
+  {. "value": {. "value": Js.Nullable.t(string)}} => Js.Nullable.t(string) = [%raw
+  {|
+     function (nullableValue) {
+     if (
+     typeof nullableValue === 'undefined' ||
+     (nullableValue === null && typeof nullableValue === 'object')
+     ) {
+     return null;
+     } else {
+     return nullableValue.toString();
+     }
+     }
+     |}
+];
+
 let maybeFind = (needle, haystack) =>
   try (Some(List.assoc(needle, haystack))) {
   | Not_found => None
@@ -671,7 +687,8 @@ let documentToTree = (schema, text: string) : entry => {
         | None => dangerArg##name##value
         | Some(path) => path ++ "." ++ dangerArg##name##value
         };
-      let argValue = dangerArg##value##value |> Js.Nullable.toOption;
+      let argValue =
+        dangerArg##value##value |> stringification |> Js.Nullable.toOption;
       [
         CheckArg(fieldPath, argPath),
         SetArgValue(fieldPath, argPath, argValue),
@@ -701,7 +718,8 @@ let documentToTree = (schema, text: string) : entry => {
            switch (isNested) {
            | false =>
              let argPath = arg##name##value;
-             let argValue = arg##value##value |> Js.Nullable.toOption;
+             let argValue =
+               arg##value##value |> stringification |> Js.Nullable.toOption;
              [
                CheckArg(fieldPath, argPath),
                SetArgValue(fieldPath, argPath, argValue),
@@ -790,8 +808,8 @@ let documentToTree = (schema, text: string) : entry => {
           /* Js.log3("Toggle Arg Path: ", fieldPath, argPath); */
           toggleArgByPath(schema, root, fieldPath, argPath)
         | SetArgValue(fieldPath, argPath, argValue) =>
-          /* Js.log4("SetArgValue: ", fieldPath, argPath, argValue); */
-          setArgValueByPath(schema, root, fieldPath, argPath, argValue)
+          Js.log4("SetArgValue: ", fieldPath, argPath, argValue);
+          setArgValueByPath(schema, root, fieldPath, argPath, argValue);
         },
       root,
       actions,

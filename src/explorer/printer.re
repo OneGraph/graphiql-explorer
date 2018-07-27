@@ -51,7 +51,8 @@ and printScalar = (subField: argSubField) : string => {
     | StringField(_) => Printf.sprintf({|"%s"|}, defaultValue)
     | IntField(_)
     | FloatField(_)
-    | EnumField(_) => defaultValue
+    | EnumField(_)
+    | BooleanField(_) => defaultValue
     | ObjectField(_) => printArgObjectField(subField)
     | InputObjectField(_) => printArgObject(subField)
     | _ => "UNKNOWN"
