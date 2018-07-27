@@ -220,6 +220,26 @@ function getAppFromURL(): ?{id: string, name: string} {
   }
 }
 
+class ErrorBoundary extends React.Component<*, {hasError: boolean}> {
+  state = {hasError: false};
+
+  componentDidCatch(error, info) {
+
+    // Display fallback UI
+    this.setState({hasError: true});
+    // You can also log the error to an error reporting service
+    console.error('Error in component', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // You can render any custom fallback UI
+      return <div>Something went wrong.</div>;
+    }
+    return this.props.children;
+  }
+}
+
 class App extends React.Component<Props, State> {
   _params: {query: string, variables: string, operationName: string};
   _storage = new StorageAPI();
@@ -578,12 +598,14 @@ class App extends React.Component<Props, State> {
           </div>
           <div className="history-contents">
             {this.state.schema ? (
-              <Explorer
-                queryText={this.state.query}
-                clientSchema={this.state.schema}
-                debounceMs={250}
-                onEdit={this.handleExplorerUpdated}
-              />
+              <ErrorBoundary>
+                <Explorer
+                  queryText={this.state.query}
+                  clientSchema={this.state.schema}
+                  debounceMs={250}
+                  onEdit={this.handleExplorerUpdated}
+                />
+              </ErrorBoundary>
             ) : null}
           </div>
         </div>
