@@ -687,7 +687,7 @@ class App extends React.Component<Props, State> {
                   oneGraphAuth={this._oneGraphAuth}
                   service="gmail"
                   onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.youtubeLoggedIn}
+                  isSignedIn={this.state.gmailLoggedIn}
                 />
                 <LoginButton
                   oneGraphAuth={this._oneGraphAuth}
