@@ -733,7 +733,7 @@ class App extends React.Component<Props, State> {
                   isSignedIn={this.state.slackLoggedIn}
                   scopes={
                     this.state.slackLoggedIn
-                      ? ['team:read', 'chat:write:bot']
+                      ? ['users:read', 'team:read', 'chat:write:bot']
                       : null
                   }
                 />
