@@ -95,6 +95,7 @@ type LoginButtonProps = {
   service: Service,
   onAuthResponse: (response: AuthResponse) => void,
   isSignedIn: ?boolean,
+  scopes?: ?Array<string>,
 };
 
 // eslint-disable-next-line
@@ -135,10 +136,10 @@ class LoginButton extends React.Component<
 > {
   state = {loading: false};
   _onSelect = async (): Promise<void> => {
-    const {oneGraphAuth, service, onAuthResponse} = this.props;
+    const {oneGraphAuth, service, onAuthResponse, scopes} = this.props;
     try {
       this.setState({loading: true});
-      const authResponse = await oneGraphAuth.login(service);
+      const authResponse = await oneGraphAuth.login(service, scopes);
       onAuthResponse(authResponse);
       this.setState({loading: false});
     } catch (e) {
@@ -191,8 +192,10 @@ type State = {
   googleComputeLoggedIn: ?boolean,
   googleDocsLoggedIn: ?boolean,
   intercomLoggedIn: ?boolean,
+  hubspotLoggedIn: ?boolean,
   youtubeLoggedIn: ?boolean,
   salesforceLoggedIn: ?boolean,
+  slackLoggedIn: ?boolean,
   stripeLoggedIn: ?boolean,
   twitterLoggedIn: ?boolean,
   sfdcLoggedIn: ?boolean,
@@ -224,7 +227,6 @@ class ErrorBoundary extends React.Component<*, {hasError: boolean}> {
   state = {hasError: false};
 
   componentDidCatch(error, info) {
-
     // Display fallback UI
     this.setState({hasError: true});
     // You can also log the error to an error reporting service
@@ -260,9 +262,11 @@ class App extends React.Component<Props, State> {
       githubLoggedIn: null,
       googleComputeLoggedIn: null,
       googleDocsLoggedIn: null,
+      hubspotLoggedIn: null,
       intercomLoggedIn: null,
       youtubeLoggedIn: null,
       salesforceLoggedIn: null,
+      slackLoggedIn: null,
       stripeLoggedIn: null,
       twitterLoggedIn: null,
       onegraphLoggedIn: null,
@@ -402,11 +406,14 @@ class App extends React.Component<Props, State> {
       .isLoggedIn('intercom')
       .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
     this._oneGraphAuth
-      .isLoggedIn('intercom')
-      .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
+      .isLoggedIn('hubspot')
+      .then(hubspotLoggedIn => this.setState({hubspotLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('salesforce')
       .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
+    this._oneGraphAuth
+      .isLoggedIn('slack')
+      .then(slackLoggedIn => this.setState({slackLoggedIn}));
     this._oneGraphAuth
       .isLoggedIn('stripe')
       .then(stripeLoggedIn => this.setState({stripeLoggedIn}));
@@ -712,6 +719,23 @@ class App extends React.Component<Props, State> {
                   service="google-docs"
                   onAuthResponse={this._fetchAuth}
                   isSignedIn={this.state.googleDocsLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="hubspot"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.hubspotLoggedIn}
+                />
+                <LoginButton
+                  oneGraphAuth={this._oneGraphAuth}
+                  service="slack"
+                  onAuthResponse={this._fetchAuth}
+                  isSignedIn={this.state.slackLoggedIn}
+                  scopes={
+                    this.state.slackLoggedIn
+                      ? ['team:read', 'chat:write:bot']
+                      : null
+                  }
                 />
               </GraphiQL.Menu>
               <GraphiQL.Button
