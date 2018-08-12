@@ -546,7 +546,7 @@ class App extends React.Component<Props, State> {
         <ToastContainer
           bodyClassName="toast"
           closeButton={false}
-          autoClose={50000}
+          autoClose={5000}
           hideProgressBar={true}
           transition={Slide}
           style={{padding: 18}}
