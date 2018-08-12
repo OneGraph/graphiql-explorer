@@ -13,9 +13,15 @@ import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
 import copy from 'copy-to-clipboard';
-import type {AuthResponse, Service} from 'onegraph-auth';
+import {ToastContainer, Slide, toast} from 'react-toastify';
+
+import type {AuthResponse, Service, ServicesStatus} from 'onegraph-auth';
+
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
+
 const Explorer = require('./explorer/explorer.bs').explorer;
+
 // Remove search until we have a way to search public queries
 // import Search from './Search';
 
@@ -135,12 +141,30 @@ class LoginButton extends React.Component<
   {loading: boolean},
 > {
   state = {loading: false};
-  _onSelect = async (): Promise<void> => {
-    const {oneGraphAuth, service, onAuthResponse, scopes} = this.props;
+  _onSelect = async (e): Promise<void> => {
+    const {
+      oneGraphAuth,
+      service,
+      onAuthResponse,
+      scopes,
+      isSignedIn,
+    } = this.props;
     try {
       this.setState({loading: true});
-      const authResponse = await oneGraphAuth.login(service, scopes);
-      onAuthResponse(authResponse);
+      const serviceName = oneGraphAuth.friendlyServiceName(service);
+      if (isSignedIn) {
+        const {result} = await oneGraphAuth.logout(service);
+        if (result === 'success') {
+          toast('Logged out of ' + serviceName);
+        } else {
+          toast.error('Error logging out of ' + serviceName);
+        }
+        onAuthResponse({});
+      } else {
+        const authResponse = await oneGraphAuth.login(service, scopes);
+        toast('Logged in to ' + serviceName);
+        onAuthResponse(authResponse);
+      }
       this.setState({loading: false});
     } catch (e) {
       console.error(e);
@@ -154,7 +178,7 @@ class LoginButton extends React.Component<
       <GraphiQL.MenuItem
         key={serviceName}
         label={
-          (isSignedIn ? '\u2713 ' : 'Log in to ') +
+          (isSignedIn ? '\u2713 Log out of ' : 'Log in to ') +
           (serviceName + (PROD_SERVICES.has(service) ? '' : ' (beta)'))
         }
         disabled={this.state.loading || isSignedIn}
@@ -178,6 +202,7 @@ const appsQuery = `
 
 type Props = {};
 type State = {
+  servicesStatus: ?ServicesStatus,
   apps: Array<{id: string, name: string}>,
   query: string,
   variables: string,
@@ -186,22 +211,6 @@ type State = {
   schema: ?Object,
   selectedNodes: Object,
   queryResultMessage: string,
-  onegraphLoggedIn: ?boolean,
-  gmailLoggedIn: ?boolean,
-  githubLoggedIn: ?boolean,
-  googleComputeLoggedIn: ?boolean,
-  googleDocsLoggedIn: ?boolean,
-  intercomLoggedIn: ?boolean,
-  hubspotLoggedIn: ?boolean,
-  youtubeLoggedIn: ?boolean,
-  salesforceLoggedIn: ?boolean,
-  slackLoggedIn: ?boolean,
-  stripeLoggedIn: ?boolean,
-  twitterLoggedIn: ?boolean,
-  sfdcLoggedIn: ?boolean,
-  twilioLoggedIn: ?boolean,
-  eventilLoggedIn: ?boolean,
-  zendeskLoggedIn: ?boolean,
   operationName: string,
   activeApp: {id: string, name: string},
   exportText: string,
@@ -257,22 +266,7 @@ class App extends React.Component<Props, State> {
     this._defaultApp = appFromURL || DEFAULT_APP;
     this._params = this._getInitialParams();
     this.state = {
-      eventilLoggedIn: null,
-      gmailLoggedIn: null,
-      githubLoggedIn: null,
-      googleComputeLoggedIn: null,
-      googleDocsLoggedIn: null,
-      hubspotLoggedIn: null,
-      intercomLoggedIn: null,
-      youtubeLoggedIn: null,
-      salesforceLoggedIn: null,
-      slackLoggedIn: null,
-      stripeLoggedIn: null,
-      twitterLoggedIn: null,
-      onegraphLoggedIn: null,
-      sfdcLoggedIn: null,
-      twilioLoggedIn: null,
-      zendeskLoggedIn: null,
+      servicesStatus: null,
       query: this._params.query,
       variables: this._params.variables,
       operationName: this._params.operationName,
@@ -332,6 +326,7 @@ class App extends React.Component<Props, State> {
       oneGraphOrigin: Config.oneGraphOrigin,
       appId,
     });
+    this.setState({servicesStatus: null});
   };
 
   _graphQLFetch = (params: Object): Object => {
@@ -385,47 +380,8 @@ class App extends React.Component<Props, State> {
 
   _fetchAuth = () => {
     this._oneGraphAuth
-      .isLoggedIn('eventil')
-      .then(eventilLoggedIn => this.setState({eventilLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('github')
-      .then(githubLoggedIn => this.setState({githubLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('youtube')
-      .then(youtubeLoggedIn => this.setState({youtubeLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('gmail')
-      .then(gmailLoggedIn => this.setState({gmailLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('google-compute')
-      .then(googleComputeLoggedIn => this.setState({googleComputeLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('google-docs')
-      .then(googleDocsLoggedIn => this.setState({googleDocsLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('intercom')
-      .then(intercomLoggedIn => this.setState({intercomLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('hubspot')
-      .then(hubspotLoggedIn => this.setState({hubspotLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('salesforce')
-      .then(salesforceLoggedIn => this.setState({salesforceLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('slack')
-      .then(slackLoggedIn => this.setState({slackLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('stripe')
-      .then(stripeLoggedIn => this.setState({stripeLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('twitter')
-      .then(twitterLoggedIn => this.setState({twitterLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('twilio')
-      .then(twilioLoggedIn => this.setState({twilioLoggedIn}));
-    this._oneGraphAuth
-      .isLoggedIn('zendesk')
-      .then(zendeskLoggedIn => this.setState({zendeskLoggedIn}));
+      .servicesStatus()
+      .then(servicesStatus => this.setState({servicesStatus}));
   };
   _fetchApps = () => {
     this._graphQLFetch({
@@ -587,6 +543,14 @@ class App extends React.Component<Props, State> {
           height: '100%',
           display: 'flex',
         }}>
+        <ToastContainer
+          bodyClassName="toast"
+          closeButton={false}
+          autoClose={50000}
+          hideProgressBar={true}
+          transition={Slide}
+          style={{padding: 18}}
+        />
         <div
           className="historyPaneWrap"
           style={{
@@ -648,95 +612,21 @@ class App extends React.Component<Props, State> {
                 title="Toggle Explorer"
               />
               <GraphiQL.Menu label="Authentication" title="Authentication">
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="salesforce"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.salesforceLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="stripe"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.stripeLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="zendesk"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.zendeskLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="intercom"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.intercomLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="github"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.githubLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="eventil"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.eventilLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="youtube"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.youtubeLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="gmail"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.gmailLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="twilio"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.twilioLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="twitter"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.twitterLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="google-compute"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.googleComputeLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="google-docs"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.googleDocsLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="hubspot"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.hubspotLoggedIn}
-                />
-                <LoginButton
-                  oneGraphAuth={this._oneGraphAuth}
-                  service="slack"
-                  onAuthResponse={this._fetchAuth}
-                  isSignedIn={this.state.slackLoggedIn}
-                  scopes={
-                    this.state.slackLoggedIn
-                      ? ['users:read', 'team:read', 'chat:write:bot']
-                      : null
-                  }
-                />
+                {this._oneGraphAuth.supportedServices.map((service, i) => (
+                  <LoginButton
+                    key={i}
+                    oneGraphAuth={this._oneGraphAuth}
+                    service={service}
+                    onAuthResponse={this._fetchAuth}
+                    isSignedIn={
+                      this.state.servicesStatus
+                        ? this.state.servicesStatus[service]
+                          ? this.state.servicesStatus[service].isLoggedIn
+                          : false
+                        : false
+                    }
+                  />
+                ))}
               </GraphiQL.Menu>
               <GraphiQL.Button
                 onClick={this._exportQuery}

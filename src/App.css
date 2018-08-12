@@ -155,3 +155,11 @@ hr.result-title {
   height: 12px;
   width: 12px;
 }
+
+.toast {
+  padding-left: 12px;
+}
+
+.Toastify__toast--default {
+  color: black;
+}
