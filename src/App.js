@@ -153,13 +153,23 @@ class LoginButton extends React.Component<
       this.setState({loading: true});
       const serviceName = oneGraphAuth.friendlyServiceName(service);
       if (isSignedIn) {
-        const {result} = await oneGraphAuth.logout(service);
-        if (result === 'success') {
-          toast('Logged out of ' + serviceName);
+        if (service === 'slack') {
+          const authResponse = await oneGraphAuth.login(service, [
+            'users:read',
+            'team:read',
+            'chat:write:bot',
+          ]);
+          toast('Logged in to ' + serviceName);
+          onAuthResponse(authResponse);
         } else {
-          toast.error('Error logging out of ' + serviceName);
+          const {result} = await oneGraphAuth.logout(service);
+          if (result === 'success') {
+            toast('Logged out of ' + serviceName);
+          } else {
+            toast.error('Error logging out of ' + serviceName);
+          }
+          onAuthResponse({});
         }
-        onAuthResponse({});
       } else {
         const authResponse = await oneGraphAuth.login(service, scopes);
         toast('Logged in to ' + serviceName);
@@ -178,7 +188,9 @@ class LoginButton extends React.Component<
       <GraphiQL.MenuItem
         key={serviceName}
         label={
-          (isSignedIn ? '\u2713 Log out of ' : 'Log in to ') +
+          (isSignedIn && service !== 'slack'
+            ? '\u2713 Log out of '
+            : 'Log in to ') +
           (serviceName + (PROD_SERVICES.has(service) ? '' : ' (beta)'))
         }
         disabled={this.state.loading || isSignedIn}
