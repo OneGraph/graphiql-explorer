@@ -27,6 +27,14 @@ const Explorer = require('./explorer/explorer.bs').explorer;
 
 type AppDetails = {name: string, id: string};
 
+type QueryMetrics = {
+  requestMs?: number,
+  api?: {
+    totalRequestMs: number,
+    requestCount: number,
+  },
+};
+
 function windowParams() {
   const params = {};
   const searchParams = new URL(window.location.href).searchParams;
@@ -50,6 +58,7 @@ function graphQLFetcher(
 ): Promise<Object | string> {
   const url = new URL(serveUrl);
   url.searchParams.set('app_id', appId);
+  url.searchParams.set('show_metrics', 'true');
   return fetch(url.toString(), {
     method: 'post',
     headers: {
@@ -222,7 +231,7 @@ type State = {
   rawSchema: ?Object,
   schema: ?Object,
   selectedNodes: Object,
-  queryResultMessage: string,
+  queryMetrics: QueryMetrics,
   operationName: string,
   activeApp: {id: string, name: string},
   exportText: string,
@@ -285,8 +294,8 @@ class App extends React.Component<Props, State> {
       explorerIsOpen: this._storage.get(
         this._makeStorageKey(this._defaultApp, EXPLORER_STORAGE_KEY),
       ),
+      queryMetrics: {},
       selectedNodes: new Set([]),
-      queryResultMessage: 'Request time: -ms',
       rawSchema: null,
       schema: null,
       apps: [this._defaultApp],
@@ -378,9 +387,17 @@ class App extends React.Component<Props, State> {
   _graphiqlFetch = (params: Object): Object => {
     const startTs = Date.now();
     return this._graphQLFetch(params).then(result => {
+      const metrics = result.extensions && result.extensions.metrics;
+      // Don't show metrics in extensions on GraphiQL so that people
+      // don't rely on it in their apps
+      if (metrics) {
+        delete result.extensions.metrics;
+        if (Object.keys(result.extensions).length === 0) {
+          delete result.extensions;
+        }
+      }
       this.setState({
-        queryResultMessage:
-          'Request time: ' + ((Date.now() - startTs) | 0) + 'ms',
+        queryMetrics: {...metrics, requestMs: Date.now() - startTs},
       });
       // Replace server error with what graphql-js would produce
       if (result.errors && this._queryError(params.query)) {
@@ -547,6 +564,41 @@ class App extends React.Component<Props, State> {
     }
   };
 
+  _footerMessage = () => {
+    if (!this.state.schema) {
+      return (
+        <div>
+          <div className="inline-spinner">
+            <div className="spinner-container">
+              <div className="spinner" />
+            </div>
+          </div>
+          Loading schema...
+        </div>
+      );
+    }
+    const metrics = this.state.queryMetrics;
+    const apiMetrics = metrics.api || {};
+    const metricsString = metric => (metric ? metric.toLocaleString() : '-');
+    return (
+      <span>
+        <span style={{whiteSpace: 'nowrap'}}>
+          Request time: {metricsString(metrics.requestMs)}ms
+        </span>
+        <span> </span>
+        <span style={{whiteSpace: 'nowrap'}}>
+          | API calls: {metricsString(apiMetrics.requestCount)}
+        </span>
+        <span> </span>
+        <span
+          style={{whiteSpace: 'nowrap'}}
+          title="Total time to make all API requests. Will often be larger than the request time because OneGraph executes API calls in parallel.">
+          | API request time: {metricsString(apiMetrics.totalRequestMs)}ms
+        </span>
+      </span>
+    );
+  };
+
   render() {
     return (
       <div
@@ -688,22 +740,11 @@ class App extends React.Component<Props, State> {
               <div
                 style={{
                   display: 'flex',
-                  height: '3em',
                   alignItems: 'center',
-                  paddingLeft: '1em',
+                  padding: '1em',
+                  lineHeight: '1.4em',
                 }}>
-                {this.state.schema ? (
-                  this.state.queryResultMessage
-                ) : (
-                  <div>
-                    <div className="inline-spinner">
-                      <div className="spinner-container">
-                        <div className="spinner" />
-                      </div>
-                    </div>
-                    Loading schema...
-                  </div>
-                )}
+                {this._footerMessage()}
               </div>
             </GraphiQL.Footer>
           </GraphiQL>
