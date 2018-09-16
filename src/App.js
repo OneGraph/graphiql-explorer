@@ -61,6 +61,7 @@ function graphQLFetcher(
   url.searchParams.set('show_metrics', 'true');
   return fetch(url.toString(), {
     method: 'post',
+    referrer: 'OneGraphiQL',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
