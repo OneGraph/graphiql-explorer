@@ -393,9 +393,9 @@ class App extends React.Component<Props, State> {
       // don't rely on it in their apps
       if (metrics) {
         delete result.extensions.metrics;
-        if (Object.keys(result.extensions).length === 0) {
-          delete result.extensions;
-        }
+      }
+      if (Object.keys(result.extensions).length === 0) {
+        delete result.extensions;
       }
       this.setState({
         queryMetrics: {...metrics, requestMs: Date.now() - startTs},
