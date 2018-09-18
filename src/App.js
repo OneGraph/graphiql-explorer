@@ -394,7 +394,7 @@ class App extends React.Component<Props, State> {
       if (metrics) {
         delete result.extensions.metrics;
       }
-      if (Object.keys(result.extensions).length === 0) {
+      if (result.extensions && Object.keys(result.extensions).length === 0) {
         delete result.extensions;
       }
       this.setState({
