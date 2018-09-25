@@ -7,7 +7,7 @@
     "copy-to-clipboard": "^3.0.8",
     "graphql": "^0.13.2",
     "graphql-language-service-interface": "^1.2.2",
-    "onegraph-auth": "0.2.14",
+    "onegraph-auth": "0.2.15",
     "react": "^16.4.1",
     "react-autosuggest": "^9.3.4",
     "react-dom": "^16.4.1",
