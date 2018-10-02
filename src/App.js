@@ -588,7 +588,18 @@ class App extends React.Component<Props, State> {
         </span>
         <span> </span>
         <span style={{whiteSpace: 'nowrap'}}>
-          | API calls: {metricsString(apiMetrics.requestCount)}
+          | API calls: {metricsString(apiMetrics.requestCount)}{' '}
+          {apiMetrics.avoidedRequestCount ? (
+            <span
+              title={`OneGraph avoided ${metricsString(
+                apiMetrics.avoidedRequestCount,
+              )} api calls through smart batching and caching.`}>
+              (vs{' '}
+              {metricsString(
+                apiMetrics.avoidedRequestCount + apiMetrics.requestCount,
+              )})
+            </span>
+          ) : null}
         </span>
         <span> </span>
         <span
