@@ -32,6 +32,7 @@ type QueryMetrics = {
   api?: {
     totalRequestMs: number,
     requestCount: number,
+    avoidedRequestCount: number,
   },
 };
 
