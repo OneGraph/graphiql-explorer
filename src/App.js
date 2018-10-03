@@ -8,7 +8,7 @@ import {defaultQuery} from './oneGraphQL';
 import {introspectionQuery, buildClientSchema} from 'graphql';
 // $FlowFixMe: flow doesn't like graphql-language-service-interface
 import {getDiagnostics} from 'graphql-language-service-interface';
-import {getPath, debounce, safeURIDecode} from './utils';
+import {getPath, debounce, safeURIDecode, getDefaultFieldNames} from './utils';
 import Config from './Config';
 import OneGraphAuth from 'onegraph-auth';
 import prettyPrint from './prettyPrint';
@@ -670,7 +670,8 @@ class App extends React.Component<Props, State> {
             query={this.state.query}
             variables={this.state.variables}
             operationName={this.state.operationName}
-            schema={this.state.schema}>
+            schema={this.state.schema}
+            getDefaultFieldNames={getDefaultFieldNames}>
             <GraphiQL.Logo>OneGraphiQL</GraphiQL.Logo>
             <GraphiQL.Toolbar>
               <GraphiQL.Button
