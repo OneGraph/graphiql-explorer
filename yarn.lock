@@ -9,9 +9,9 @@
     graphql-language-service-interface "^1.0.18"
     graphql-language-service-parser "^1.0.18"
 
-"@onegraph/graphiql@^0.11.11":
-  version "0.11.12"
-  resolved "https://registry.yarnpkg.com/@onegraph/graphiql/-/graphiql-0.11.12.tgz#2090fade8cbbaf50dfeeb51901eecada91e82174"
+"@onegraph/graphiql@^0.11.12-1":
+  version "0.11.12-1"
+  resolved "https://registry.yarnpkg.com/@onegraph/graphiql/-/graphiql-0.11.12-1.tgz#9034fd119c66bf6d66bf6892e2bc931f82a39733"
   dependencies:
     "@onegraph/codemirror-graphql" "^0.6.12"
     codemirror "^5.26.0"
