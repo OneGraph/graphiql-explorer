@@ -90,23 +90,6 @@ function graphQLFetcher(
     });
 }
 
-function updateURL(params) {
-  const url = new URL(window.location.href);
-  const searchParams = url.searchParams;
-  for (const param of Object.keys(params)) {
-    const value = params[param];
-    if (value == null) {
-      searchParams.delete(param);
-    } else {
-      searchParams.set(param, encodeURIComponent(value));
-    }
-  }
-  const queryParam = searchParams.toString();
-  if (queryParam.length < 15000) {
-    window.history.replaceState(null, null, url.pathname + '?' + queryParam);
-  }
-}
-
 type LoginButtonProps = {
   oneGraphAuth: OneGraphAuth,
   service: Service,
@@ -474,7 +457,6 @@ class App extends React.Component<Props, State> {
   };
   storeParamsStar = (param: string, value: string) => {
     this._setStorage(PARAMS_STORAGE_KEY, JSON.stringify(this._params));
-    updateURL(this._params);
   };
 
   storeParams = debounce(this.storeParamsStar, 300);
@@ -556,7 +538,7 @@ class App extends React.Component<Props, State> {
       shareUrl.searchParams.set(param, encodeURIComponent(this._params[param]));
     }
     if (copy(shareUrl.toString())) {
-      this.setState({exportText: 'Copied to clipboard!'});
+      this.setState({exportText: 'URL copied to clipboard!'});
       window.setTimeout(
         () => this.setState({exportText: DEFAULT_EXPORT_TEXT}),
         1000,
