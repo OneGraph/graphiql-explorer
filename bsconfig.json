@@ -3,7 +3,7 @@
   comma. If this screws with your editor highlighting, please tell us by filing
   an issue! */
 {
-  "name": "react-template",
+  "name": "graphiql-explorer",
   "reason": {
     "react-jsx": 2
   },

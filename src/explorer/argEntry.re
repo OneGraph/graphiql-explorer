@@ -28,7 +28,7 @@ let label =
     )
     onClick=(
       event => {
-        ReactEventRe.Mouse.stopPropagation(event);
+        ReactEvent.Mouse.stopPropagation(event);
         ctx.toggleArg(fieldPath, argPath);
       }
     )>
@@ -38,7 +38,7 @@ let label =
         readOnly=true
         onClick=(
           event => {
-            ReactEventRe.Mouse.stopPropagation(event);
+            ReactEvent.Mouse.stopPropagation(event);
             ctx.toggleArg(fieldPath, argPath);
           }
         )
@@ -60,13 +60,11 @@ let renderScalar = (~ctx: ctx, ~fieldPath, ~argPath, ~typ, checked, ()) => {
   | false =>
     <input
       type_="text"
-      onClick=(event => ReactEventRe.Mouse.stopPropagation(event))
+      onClick=(event => ReactEvent.Mouse.stopPropagation(event))
       required=(isRequired && checked)
       onChange=(
         event => {
-          let newValue' = ReactDOMRe.domElementToObj(
-                            ReactEventRe.Form.target(event),
-                          )##value;
+          let newValue' = ReactEvent.Form.target(event)##value;
           let newValue =
             switch (newValue') {
             | "" => None
@@ -81,7 +79,7 @@ let renderScalar = (~ctx: ctx, ~fieldPath, ~argPath, ~typ, checked, ()) => {
     <input
       style=(ReactDOMRe.Style.make(~width="1000px", ()))
       type_="checkbox"
-      onClick=(event => ReactEventRe.Mouse.stopPropagation(event))
+      onClick=(event => ReactEvent.Mouse.stopPropagation(event))
       required=(isRequired && checked)
       onChange=(
         _event => {
@@ -125,15 +123,13 @@ let renderEnum = (~key, ~ctx: ctx, ~fieldPath, ~argPath, ~typ, _checked, ()) => 
   <select
     key
     ?value
-    onClick=(event => ReactEventRe.Mouse.stopPropagation(event))
+    onClick=(event => ReactEvent.Mouse.stopPropagation(event))
     onChange=(
       event =>
         ctx.setArgValue(
           fieldPath,
           argPath,
-          Some(
-            ReactDOMRe.domElementToObj(ReactEventRe.Form.target(event))##value,
-          ),
+          Some(ReactEvent.Form.target(event)##value),
         )
     )>
     (

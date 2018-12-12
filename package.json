@@ -1,20 +1,31 @@
 {
-  "name": "onegraphiql",
+  "name": "graphiql-explorer",
   "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@onegraph/graphiql": "^0.11.12-1",
-    "copy-to-clipboard": "^3.0.8",
-    "graphql": "^0.13.2",
-    "graphql-language-service-interface": "^1.2.2",
-    "onegraph-auth": "0.2.16",
-    "react": "^16.4.1",
-    "react-autosuggest": "^9.3.4",
-    "react-dom": "^16.4.1",
-    "react-highlight-words": "^0.11.0",
-    "react-toastify": "^4.1.0",
-    "react-treeview": "^0.4.7",
-    "reason-react": ">=0.3.4"
+  "homepage": "https://github.com/onegraph/graphiql-explorer",
+  "bugs": {
+    "url": "https://github.com/onegraph/graphiql-explorer/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/onegraph/graphiql-explorer.git"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "graphiqlExplorer.js",
+    "graphiqlExplorer.min.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "browserify-shim": {
+    "react": "global:React",
+    "react-dom": "global:ReactDOM"
+  },
+  "peerDependencies": {
+    "graphql": "^0.6.0 || ^0.7.0 || ^0.8.0-b || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0",
+    "react": "^15.6.0 || ^16.0.0",
+    "react-dom": "^15.6.0 || ^16.0.0"
   },
   "prettier": {
     "singleQuote": true,
@@ -23,38 +34,43 @@
     "jsxBracketSameLine": true
   },
   "devDependencies": {
+    "babel-eslint": "7.2.3",
+    "eslint": "4.4.1",
+    "eslint-config-prettier": "^2.3.0",
+    "eslint-plugin-babel": "4.1.2",
+    "eslint-plugin-react": "7.2.0",
+    "graphql": "^0.13.2",
+    "react": "^16.4.1",
+    "react-autosuggest": "^9.3.4",
+    "react-dom": "^16.4.1",
+    "react-highlight-words": "^0.11.0",
+    "react-toastify": "^4.1.0",
+    "react-treeview": "^0.4.7",
+    "reason-react": ">=0.3.4",
     "bs-platform": "^3.1.5",
     "flow-bin": "^0.77.0",
-    "npm-run-all": "^4.1.2",
     "prettier": "^1.13.5",
-    "react-scripts": "^1.1.4"
+    "babel-cli": "6.24.1",
+    "babel-plugin-syntax-async-functions": "6.13.0",
+    "babel-plugin-transform-class-properties": "6.24.1",
+    "babel-plugin-transform-object-rest-spread": "6.22.0",
+    "babel-plugin-transform-regenerator": "6.24.1",
+    "babel-preset-es2015": "6.24.1",
+    "babel-preset-react": "6.24.1",
+    "babelify": "7.3.0",
+    "browserify": "^14.4.0",
+    "browserify-shim": "3.8.14",
+    "uglify-js": "^3.0.20",
+    "uglifyify": "^4.0.2"
   },
   "scripts": {
-    "start-js": "react-scripts start",
-    "build-js": "export REACT_APP_GIT_SHA=`git rev-parse HEAD` && react-scripts build",
-    "start": "npm-run-all -p start-js watch-reason",
-    "build": "npm-run-all build-js",
-    "bsb-w": "bsb -make-world -w",
-    "bsb": "bsb -make-world",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject",
-    "prettier": "prettier --write \"src/**/*.js\"",
-    "flow": "flow",
-    "build-reason": "bsb -make-world -clean-world",
-    "watch-reason": "bsb -make-world -clean-world -w",
-    "postinstall": "yarn run build-reason"
-  },
-  "browserslist": {
-    "development": [
-      "last 2 chrome versions",
-      "last 2 firefox versions",
-      "last 2 edge versions"
-    ],
-    "production": [
-      ">1%",
-      "last 4 versions",
-      "Firefox ESR",
-      "not ie < 11"
-    ]
+    "build": "bash ./resources/build.sh",
+    "check": "flow check",
+    "lint": "eslint src",
+    "lint-check": "eslint --print-config .eslintrc | eslint-config-prettier-check",
+    "prepublish": ". ./resources/prepublish.sh",
+    "preversion": ". ./resources/checkgit.sh && npm test",
+    "test": "npm run lint && npm run check && npm run build",
+    "watch": "bsb -make-world -clean-world -w"
   }
 }

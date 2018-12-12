@@ -26,7 +26,7 @@ let label = (ctx: ctx, field: ReGraphQL.Schema.Field.t, path, checked, depth) =>
     )
     onClick=(
       event => {
-        ReactEventRe.Mouse.stopPropagation(event);
+        ReactEvent.Mouse.stopPropagation(event);
         ctx.toggleField(path);
       }
     )>

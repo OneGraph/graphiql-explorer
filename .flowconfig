@@ -1,5 +1,8 @@
 [ignore]
-
+.*/css/.*
+.*/dist/.*
+.*/coverage/.*
+.*/resources/.*
 .*/node_modules/graphql-language-service-interface/.*
 
 [include]
