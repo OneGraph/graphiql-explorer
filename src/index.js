@@ -1,1 +1,4 @@
-module.exports = require('./explorer/explorer.bs').explorer;
+import Explorer from './Explorer';
+
+export {Explorer};
+export default Explorer;

@@ -1,1 +1,1 @@
-Onegraph app for graphiql
+Interactive explorer plugin for GraphiQL

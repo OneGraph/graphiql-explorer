@@ -9,7 +9,6 @@ if [ ! -d "node_modules/.bin" ]; then
 fi
 
 rm -rf dist/ && mkdir -p dist/
-bsb -make-world -clean-world
 babel src --ignore __tests__ --out-dir dist/
 echo "Bundling graphiqlExplorer.js..."
 browserify -g browserify-shim -s GraphiQLExplorer dist/index.js > graphiqlExplorer.js
