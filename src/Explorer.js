@@ -5,6 +5,8 @@
 // TODO: Custom default args
 // TODO: Auto-insert require args
 // TODO: Add stylesheet and remove inline styles
+// TODO: Indication of when query in explorer diverges from query in editor pane
+// TODO: Show "No Schema Available" when schema is empty
 
 import React from 'react';
 
