@@ -41,9 +41,6 @@ import type {
   ObjectValueNode,
   SelectionNode,
   ValueNode,
-  StringValueNode,
-  IntValueNode,
-  FloatValueNode,
 } from 'graphql';
 
 type Props = {
@@ -119,68 +116,56 @@ function unwrapInputType(inputType: GraphQLInputType): GraphQLInputType {
   return unwrappedType;
 }
 
-function tryParse(argType: GraphQLScalarType | GraphQLEnumType, value: string) {
-  if (isEnumType(argType)) {
-    try {
-      const parsedValue = argType.parseValue(value);
-
-      if (parsedValue) {
-        return String(parsedValue);
-      } else {
-        return argType.getValues()[0].name;
-      }
-    } catch (e) {
-      return argType.getValues()[0].name;
-    }
-  } else {
-    try {
-      return String(argType.parseValue(value));
-    } catch (e) {
-      switch (argType.name) {
-        case 'String':
-          return '';
-        case 'Float':
-          return '1';
-        case 'Int':
-          return '1';
-        default:
-          return '';
-      }
-    }
-  }
-}
-
 function argValue(
   argType: GraphQLScalarType | GraphQLEnumType,
   value: string,
 ): ValueNode {
   if (isScalarType(argType)) {
-    switch (argType.name) {
-      case 'String':
-        return {kind: 'StringValue', value: tryParse(argType, value)};
-      case 'Float':
-        return {kind: 'FloatValue', value: tryParse(argType, value)};
-      case 'Int':
-        return {kind: 'IntValue', value: tryParse(argType, value)};
-      case 'Boolean':
-        try {
-          const parsed = JSON.parse(value);
-          if (typeof parsed === 'boolean') {
-            return {kind: 'BooleanValue', value: parsed};
-          } else {
-            return {kind: 'BooleanValue', value: false};
-          }
-        } catch (e) {
+    try {
+      switch (argType.name) {
+        case 'String':
           return {
-            kind: 'BooleanValue',
-            value: JSON.parse(tryParse(argType, value)),
+            kind: 'StringValue',
+            value: String(argType.parseValue(value)),
           };
-        }
-      default:
-        return {kind: 'StringValue', value: tryParse(argType, value)};
+        case 'Float':
+          return {kind: 'FloatValue', value: String(argType.parseValue(value))};
+        case 'Int':
+          return {kind: 'IntValue', value: String(argType.parseValue(value))};
+        case 'Boolean':
+          try {
+            const parsed = JSON.parse(value);
+            if (typeof parsed === 'boolean') {
+              return {kind: 'BooleanValue', value: parsed};
+            } else {
+              return {kind: 'BooleanValue', value: false};
+            }
+          } catch (e) {
+            return {
+              kind: 'BooleanValue',
+              value: false,
+            };
+          }
+        default:
+          return {
+            kind: 'StringValue',
+            value: String(argType.parseValue(value)),
+          };
+      }
+    } catch (e) {
+      return {kind: 'StringValue', value: value};
     }
   } else {
-    return {kind: 'EnumValue', value: tryParse(argType, value)};
+    try {
+      const parsedValue = argType.parseValue(value);
+      if (parsedValue) {
+        return {kind: 'EnumValue', value: String(parsedValue)};
+      } else {
+        return {kind: 'EnumValue', value: argType.getValues()[0].name};
+      }
+    } catch (e) {
+      return {kind: 'EnumValue', value: argType.getValues()[0].name};
+    }
   }
 }
 
@@ -304,6 +289,25 @@ type ArgViewProps = {
 
 type ArgViewState = {};
 
+function defaultValue(argType: GraphQLEnumType | GraphQLScalarType): ValueNode {
+  if (isEnumType(argType)) {
+    return {kind: 'EnumValue', value: argType.getValues()[0].name};
+  } else {
+    switch (argType.name) {
+      case 'String':
+        return {kind: 'StringValue', value: ''};
+      case 'Float':
+        return {kind: 'FloatValue', value: '1.5'};
+      case 'Int':
+        return {kind: 'IntValue', value: '10'};
+      case 'Boolean':
+        return {kind: 'BooleanValue', value: false};
+      default:
+        return {kind: 'StringValue', value: ''};
+    }
+  }
+}
+
 class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
   _previousArgSelection: ?ArgumentNode;
   _getArgSelection = () => {
@@ -338,7 +342,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       argSelection = {
         kind: 'Argument',
         name: {kind: 'Name', value: this.props.arg.name},
-        value: argValue(argType, ''),
+        value: defaultValue(argType),
       };
     }
 
@@ -430,22 +434,14 @@ type AbstractArgViewProps = {
 };
 
 type ScalarInputProps = {
-  argValue: StringValueNode | IntValueNode | FloatValueNode,
+  arg: GraphQLArgument,
+  argValue: ValueNode,
   setArgValue: (event: SyntheticInputEvent<*>) => void,
 };
 
-type ScalarInputState = {
-  value: string,
-};
-
-class ScalarInput extends React.PureComponent<
-  ScalarInputProps,
-  ScalarInputState,
-> {
-  state = {value: String(this.props.argValue.value)};
+class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
   _ref: ?any;
   _handleChange = event => {
-    this.setState({value: event.target.value});
     this.props.setArgValue(event);
   };
 
@@ -461,29 +457,30 @@ class ScalarInput extends React.PureComponent<
     }
   }
   render() {
-    const {argValue} = this.props;
+    const {arg, argValue} = this.props;
+    const argType = unwrapInputType(arg.type);
     const color =
       this.props.argValue.kind === 'StringValue' ? '#D64292' : '#2882F9';
-
+    const value = typeof argValue.value === 'string' ? argValue.value : '';
     return (
       <span style={{color}}>
-        {argValue.kind === 'StringValue' ? '"' : ''}
+        {argType.name === 'String' ? '"' : ''}
         <input
           style={{
             border: 'none',
             borderBottom: '1px solid #888',
             outline: 'none',
             color,
-            width: `${Math.max(1, this.state.value.length)}ch`,
+            width: `${Math.max(1, value.length)}ch`,
           }}
           ref={ref => {
             this._ref = ref;
           }}
           type="text"
-          onInput={this._handleChange}
-          value={this.state.value}
+          onChange={this._handleChange}
+          value={value}
         />
-        {argValue.kind === 'StringValue' ? '"' : ''}
+        {argType.name === 'String' ? '"' : ''}
       </span>
     );
   }
@@ -500,12 +497,14 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
       if (argValue.kind === 'Variable') {
         input = <span style={{color: '#397D13'}}>${argValue.name.value}</span>;
       } else if (isScalarType(argType)) {
-        if (argValue.kind === 'BooleanValue') {
+        if (argType.name === 'Boolean') {
           input = (
             <select
               style={{backgroundColor: 'white', color: '#D47509'}}
               onChange={this.props.setArgValue}
-              value={argValue.value}>
+              value={
+                argValue.kind === 'BooleanValue' ? argValue.value : undefined
+              }>
               <option key="true" value="true">
                 true
               </option>
@@ -514,21 +513,13 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
               </option>
             </select>
           );
-        } else if (
-          argValue.kind === 'IntValue' ||
-          argValue.kind === 'FloatValue' ||
-          argValue.kind === 'StringValue'
-        ) {
+        } else {
           input = (
             <ScalarInput
               setArgValue={this.props.setArgValue}
+              arg={arg}
               argValue={argValue}
             />
-          );
-        } else {
-          console.error(
-            'unknown scalar argument kind for argSelection',
-            argValue,
           );
         }
       } else if (isEnumType(argType)) {
