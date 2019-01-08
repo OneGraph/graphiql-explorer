@@ -3,10 +3,10 @@
 // TODO: Add default fields recursively
 // TODO: Add default fields for all selections (not just fragments)
 // TODO: Custom default args
-// TODO: Auto-insert require args
 // TODO: Add stylesheet and remove inline styles
 // TODO: Indication of when query in explorer diverges from query in editor pane
 // TODO: Show "No Schema Available" when schema is empty
+// TODO: Separate section for deprecated args, with support for 'beta' fields
 
 import React from 'react';
 
@@ -17,6 +17,7 @@ import {
   isLeafType,
   isNonNullType,
   isObjectType,
+  isRequiredInputField,
   isScalarType,
   isUnionType,
   isWrappingType,
@@ -32,6 +33,7 @@ import type {
   GraphQLEnumType,
   GraphQLField,
   GraphQLFieldMap,
+  GraphQLInputField,
   GraphQLInputType,
   GraphQLObjectType,
   GraphQLOutputType,
@@ -47,9 +49,12 @@ import type {
 
 type Props = {
   query: string,
-  schema: GraphQLSchema,
+  width?: number,
+  schema?: ?GraphQLSchema,
   onEdit: string => void,
   getDefaultFieldNames?: ?(type: GraphQLObjectType) => Array<string>,
+  onToggleExplorer: () => void,
+  explorerIsOpen: boolean,
 };
 
 type State = {
@@ -95,7 +100,7 @@ function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
       leafFieldNames.push(fieldName);
     }
   });
-  return leafFieldNames;
+  return leafFieldNames.slice(0, 2); // Prevent too many fields from being added
 }
 
 function isRequiredArgument(arg: GraphQLArgument): boolean %checks {
@@ -202,16 +207,22 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     if (this._previousArgSelection) {
       argSelection = this._previousArgSelection;
     } else if (isInputObjectType(argType)) {
+      const fields = argType.getFields();
       argSelection = {
         kind: 'ObjectField',
         name: {kind: 'Name', value: this.props.arg.name},
-        value: {kind: 'ObjectValue', fields: []},
+        value: {
+          kind: 'ObjectValue',
+          fields: defaultInputObjectFields(
+            Object.keys(fields).map(k => fields[k]),
+          ),
+        },
       };
     } else if (isLeafType(argType)) {
       argSelection = {
         kind: 'ObjectField',
         name: {kind: 'Name', value: this.props.arg.name},
-        value: argValue(argType, ''),
+        value: defaultValue(argType),
       };
     }
 
@@ -237,31 +248,29 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     const targetValue = event.target.value;
 
     this.props.modifyFields(
-      (selection.fields || []).map(
-        field =>
-          field === argSelection
-            ? {
-                ...field,
-                value: argValue(argType, targetValue),
-              }
-            : field,
+      (selection.fields || []).map(field =>
+        field === argSelection
+          ? {
+              ...field,
+              value: argValue(argType, targetValue),
+            }
+          : field,
       ),
     );
   };
 
   _modifyChildFields = fields => {
     this.props.modifyFields(
-      this.props.selection.fields.map(
-        field =>
-          field.name.value === this.props.arg.name
-            ? {
-                ...field,
-                value: {
-                  kind: 'ObjectValue',
-                  fields: fields,
-                },
-              }
-            : field,
+      this.props.selection.fields.map(field =>
+        field.name.value === this.props.arg.name
+          ? {
+              ...field,
+              value: {
+                kind: 'ObjectValue',
+                fields: fields,
+              },
+            }
+          : field,
       ),
     );
   };
@@ -335,10 +344,16 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
     if (this._previousArgSelection) {
       argSelection = this._previousArgSelection;
     } else if (isInputObjectType(argType)) {
+      const fields = argType.getFields();
       argSelection = {
         kind: 'Argument',
         name: {kind: 'Name', value: this.props.arg.name},
-        value: {kind: 'ObjectValue', fields: []},
+        value: {
+          kind: 'ObjectValue',
+          fields: defaultInputObjectFields(
+            Object.keys(fields).map(k => fields[k]),
+          ),
+        },
       };
     } else if (isLeafType(argType)) {
       argSelection = {
@@ -373,14 +388,13 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
     const targetValue = event.target.value;
 
     this.props.modifyArguments(
-      (selection.arguments || []).map(
-        a =>
-          a === argSelection
-            ? {
-                ...a,
-                value: argValue(argType, targetValue),
-              }
-            : a,
+      (selection.arguments || []).map(a =>
+        a === argSelection
+          ? {
+              ...a,
+              value: argValue(argType, targetValue),
+            }
+          : a,
       ),
     );
   };
@@ -394,17 +408,16 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
     }
 
     this.props.modifyArguments(
-      (selection.arguments || []).map(
-        a =>
-          a === argSelection
-            ? {
-                ...a,
-                value: {
-                  kind: 'ObjectValue',
-                  fields,
-                },
-              }
-            : a,
+      (selection.arguments || []).map(a =>
+        a === argSelection
+          ? {
+              ...a,
+              value: {
+                kind: 'ObjectValue',
+                fields,
+              },
+            }
+          : a,
       ),
     );
   };
@@ -711,6 +724,66 @@ type FieldViewProps = {
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
 };
 
+function defaultInputObjectFields(
+  fields: Array<GraphQLInputField>,
+): Array<ObjectFieldNode> {
+  const nodes = [];
+  for (const field of fields) {
+    if (isRequiredInputField(field)) {
+      const fieldType = unwrapInputType(field.type);
+      if (isInputObjectType(fieldType)) {
+        const fields = fieldType.getFields();
+        nodes.push({
+          kind: 'ObjectField',
+          name: {kind: 'Name', value: field.name},
+          value: {
+            kind: 'ObjectValue',
+            fields: defaultInputObjectFields(
+              Object.keys(fields).map(k => fields[k]),
+            ),
+          },
+        });
+      } else if (isLeafType(fieldType)) {
+        nodes.push({
+          kind: 'ObjectField',
+          name: {kind: 'Name', value: field.name},
+          value: defaultValue(fieldType),
+        });
+      }
+    }
+  }
+  return nodes;
+}
+
+function defaultArgs(field: Field): Array<ArgumentNode> {
+  const args = [];
+  for (const arg of field.args) {
+    if (isRequiredArgument(arg)) {
+      const argType = unwrapInputType(arg.type);
+      if (isInputObjectType(argType)) {
+        const fields = argType.getFields();
+        args.push({
+          kind: 'Argument',
+          name: {kind: 'Name', value: arg.name},
+          value: {
+            kind: 'ObjectValue',
+            fields: defaultInputObjectFields(
+              Object.keys(fields).map(k => fields[k]),
+            ),
+          },
+        });
+      } else if (isLeafType(argType)) {
+        args.push({
+          kind: 'Argument',
+          name: {kind: 'Name', value: arg.name},
+          value: defaultValue(argType),
+        });
+      }
+    }
+  }
+  return args;
+}
+
 class FieldView extends React.PureComponent<FieldViewProps, {}> {
   _previousSelection: ?SelectionNode;
   _addFieldToSelections = () =>
@@ -719,8 +792,10 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       this._previousSelection || {
         kind: 'Field',
         name: {kind: 'Name', value: this.props.field.name},
+        arguments: defaultArgs(this.props.field),
       },
     ]);
+
   _removeFieldFromSelections = () => {
     const previousSelection = this._getSelection();
     this._previousSelection = previousSelection;
@@ -751,18 +826,17 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       return;
     }
     this.props.modifySelections(
-      this.props.selections.map(
-        s =>
-          s === selection
-            ? {
-                alias: selection.alias,
-                arguments: argumentNodes,
-                directives: selection.directives,
-                kind: 'Field',
-                name: selection.name,
-                selectionSet: selection.selectionSet,
-              }
-            : s,
+      this.props.selections.map(s =>
+        s === selection
+          ? {
+              alias: selection.alias,
+              arguments: argumentNodes,
+              directives: selection.directives,
+              kind: 'Field',
+              name: selection.name,
+              selectionSet: selection.selectionSet,
+            }
+          : s,
       ),
     );
   };
@@ -1035,7 +1109,13 @@ class Explorer extends React.PureComponent<Props, State> {
   }
   render() {
     const {schema, query} = this.props;
-    window._schema = schema;
+    if (!schema) {
+      return (
+        <div style={{fontFamily: 'sans-serif'}} className="error-container">
+          No Schema Available
+        </div>
+      );
+    }
     const queryType = schema.getQueryType();
     const mutationType = schema.getMutationType();
     const subscriptionType = schema.getSubscriptionType();
@@ -1050,7 +1130,6 @@ class Explorer extends React.PureComponent<Props, State> {
 
     const getDefaultFieldNames =
       this.props.getDefaultFieldNames || defaultGetDefaultFieldNames;
-    window._parsedQuery = parsedQuery;
     return (
       <div
         ref={ref => {
@@ -1102,4 +1181,36 @@ class Explorer extends React.PureComponent<Props, State> {
   }
 }
 
-export default Explorer;
+class ExplorerWrapper extends React.PureComponent<Props, {}> {
+  static defaultProps = {
+    width: 380,
+  };
+  render() {
+    return (
+      <div
+        className="historyPaneWrap"
+        style={{
+          height: '100%',
+          width: this.props.width,
+          zIndex: 7,
+          display: this.props.explorerIsOpen ? 'block' : 'none',
+        }}>
+        <div className="history-title-bar">
+          <div className="history-title">Explorer</div>
+          <div className="doc-explorer-rhs">
+            <div
+              className="docExplorerHide"
+              onClick={this.props.onToggleExplorer}>
+              {'\u2715'}
+            </div>
+          </div>
+        </div>
+        <div className="history-contents">
+          <Explorer {...this.props} />
+        </div>
+      </div>
+    );
+  }
+}
+
+export default ExplorerWrapper;
