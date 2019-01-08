@@ -1107,6 +1107,8 @@ class Explorer extends React.PureComponent<Props, State> {
   componentDidMount() {
     this._resetScroll();
   }
+  _onEdit = (query: string): void => this.props.onEdit(query);
+
   render() {
     const {schema, query} = this.props;
     if (!schema) {
@@ -1151,7 +1153,7 @@ class Explorer extends React.PureComponent<Props, State> {
             fields={queryFields}
             operation="query"
             parsedQuery={parsedQuery}
-            onEdit={this.props.onEdit}
+            onEdit={this._onEdit}
             schema={schema}
             getDefaultFieldNames={getDefaultFieldNames}
           />
@@ -1161,7 +1163,7 @@ class Explorer extends React.PureComponent<Props, State> {
             fields={mutationFields}
             operation="mutation"
             parsedQuery={parsedQuery}
-            onEdit={this.props.onEdit}
+            onEdit={this._onEdit}
             schema={schema}
             getDefaultFieldNames={getDefaultFieldNames}
           />
@@ -1171,13 +1173,41 @@ class Explorer extends React.PureComponent<Props, State> {
             fields={subscriptionFields}
             operation="subscription"
             parsedQuery={parsedQuery}
-            onEdit={this.props.onEdit}
+            onEdit={this._onEdit}
             schema={schema}
             getDefaultFieldNames={getDefaultFieldNames}
           />
         ) : null}
       </div>
     );
+  }
+}
+
+class ErrorBoundary extends React.Component<
+  *,
+  {hasError: boolean, error: any, errorInfo: any},
+> {
+  state = {hasError: false, error: null, errorInfo: null};
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({hasError: true, error: error, errorInfo: errorInfo});
+    console.error('Error in component', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{padding: 18, fontFamily: 'sans-serif'}}>
+          <div>Something went wrong</div>
+          <details style={{whiteSpace: 'pre-wrap'}}>
+            {this.state.error ? this.state.error.toString() : null}
+            <br />
+            {this.state.errorInfo ? this.state.errorInfo.componentStack : null}
+          </details>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }
 
@@ -1206,7 +1236,9 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           </div>
         </div>
         <div className="history-contents">
-          <Explorer {...this.props} />
+          <ErrorBoundary>
+            <Explorer {...this.props} />
+          </ErrorBoundary>
         </div>
       </div>
     );
