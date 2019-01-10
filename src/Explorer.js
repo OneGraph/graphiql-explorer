@@ -48,6 +48,8 @@ import type {
   ValueNode,
 } from 'graphql';
 
+type Field = GraphQLField<any, any>;
+
 type GetDefaultScalarArgValue = (
   parentField: Field,
   arg: GraphQLArgument | GraphQLInputField,
@@ -74,8 +76,6 @@ type Props = {
 type State = {|
   operation: OperationDefinitionNode,
 |};
-
-type Field = GraphQLField<any, any>;
 
 type Selections = $ReadOnlyArray<SelectionNode>;
 
@@ -1328,6 +1328,7 @@ class ErrorBoundary extends React.Component<
 }
 
 class ExplorerWrapper extends React.PureComponent<Props, {}> {
+  static defaultValue = defaultValue;
   static defaultProps = {
     width: 380,
   };
