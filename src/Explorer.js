@@ -1182,17 +1182,19 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           paddingBottom: '0.5em',
         }}>
         <div style={{color: '#B11A04', paddingBottom: 4}}>{operation}</div>
-        {Object.keys(fields).map(fieldName => (
-          <FieldView
-            key={fieldName}
-            field={fields[fieldName]}
-            selections={selections}
-            modifySelections={this._modifySelections}
-            schema={schema}
-            getDefaultFieldNames={getDefaultFieldNames}
-            getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-            makeDefaultArg={this.props.makeDefaultArg}
-          />
+        {Object.keys(fields)
+          .sort()
+          .map(fieldName => (
+            <FieldView
+              key={fieldName}
+              field={fields[fieldName]}
+              selections={selections}
+              modifySelections={this._modifySelections}
+              schema={schema}
+              getDefaultFieldNames={getDefaultFieldNames}
+              getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+              makeDefaultArg={this.props.makeDefaultArg}
+            />
         ))}
       </div>
     );
