@@ -121,7 +121,7 @@ function isRequiredArgument(arg: GraphQLArgument): boolean %checks {
   return isNonNullType(arg.type) && arg.defaultValue === undefined;
 }
 
-function unwrapOutputType(outputType: GraphQLOutputType): GraphQLOutputType {
+function unwrapOutputType(outputType: GraphQLOutputType): * {
   let unwrappedType = outputType;
   while (isWrappingType(unwrappedType)) {
     unwrappedType = unwrappedType.ofType;
@@ -129,7 +129,7 @@ function unwrapOutputType(outputType: GraphQLOutputType): GraphQLOutputType {
   return unwrappedType;
 }
 
-function unwrapInputType(inputType: GraphQLInputType): GraphQLInputType {
+function unwrapInputType(inputType: GraphQLInputType): * {
   let unwrappedType = inputType;
   while (isWrappingType(unwrappedType)) {
     unwrappedType = unwrappedType.ofType;
@@ -645,7 +645,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     }
 
     return (
-      <div>
+      <div data-arg-name={arg.name} data-arg-type={argType.name}>
         <span
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
@@ -968,6 +968,8 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
         <span
           title={field.description}
           style={{cursor: 'pointer'}}
+          data-field-name={field.name}
+          data-field-type={type.name}
           onClick={
             selection
               ? this._removeFieldFromSelections
@@ -1195,7 +1197,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
               makeDefaultArg={this.props.makeDefaultArg}
             />
-        ))}
+          ))}
       </div>
     );
   }
