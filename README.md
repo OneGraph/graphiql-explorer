@@ -6,6 +6,9 @@ Try it live at [https://www.onegraph.com/graphiql](https://www.onegraph.com/grap
 
 Sign up at [https://www.onegraph.com](onegraph.com).
 
+[![npm version](http://img.shields.io/npm/v/graphiql-explorer.svg?style=flat)](https://npmjs.org/package/graphiql-explorer "View this project on npm")
+
+
 ## Example usage
 
 See the [example repo](https://github.com/OneGraph/graphiql-explorer-example) for how to use OneGraph's GraphiQL Explorer in your own GraphiQL instance.
