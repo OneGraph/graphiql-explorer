@@ -14,3 +14,5 @@ Sign up at [https://www.onegraph.com](onegraph.com).
 See the [example repo](https://github.com/OneGraph/graphiql-explorer-example) for how to use OneGraph's GraphiQL Explorer in your own GraphiQL instance.
 
 ![Preview](https://user-images.githubusercontent.com/476818/51567716-c00dfa00-1e4c-11e9-88f7-6d78b244d534.gif)
+
+[Read the rationale on the OneGraph blog](https://www.onegraph.com/blog/2019/01/24/How_OneGraph_onboards_users_new_to_GraphQL.html).
