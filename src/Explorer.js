@@ -652,7 +652,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           <input readOnly type="checkbox" checked={!!argValue} />
           <span title={arg.description} style={{color: '#8B2BB9'}}>
             {arg.name}
-            {isRequiredArgument(arg) ? '*' : ''}:
+            {isRequiredArgument(arg) ? '!' : ''}:
           </span>
         </span>{' '}
         {input}
