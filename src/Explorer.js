@@ -150,9 +150,15 @@ function coerceArgValue(
             value: String(argType.parseValue(value)),
           };
         case 'Float':
-          return {kind: 'FloatValue', value: String(argType.parseValue(value))};
+          return {
+            kind: 'FloatValue',
+            value: String(argType.parseValue(parseFloat(value))),
+          };
         case 'Int':
-          return {kind: 'IntValue', value: String(argType.parseValue(value))};
+          return {
+            kind: 'IntValue',
+            value: String(argType.parseValue(parseInt(value, 10))),
+          };
         case 'Boolean':
           try {
             const parsed = JSON.parse(value);
@@ -174,6 +180,7 @@ function coerceArgValue(
           };
       }
     } catch (e) {
+      console.error('error coercing arg value', e, value);
       return {kind: 'StringValue', value: value};
     }
   } else {
