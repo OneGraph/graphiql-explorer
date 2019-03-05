@@ -1,0 +1,82 @@
+.graphiql-explorer-container {
+  height: 100%;
+  z-index: 7;
+  display: block;
+}
+
+.graphiql-explorer-container-closed {
+  height: 100%;
+  z-index: 7;
+  display: none;
+}
+
+.graphiql-explorer-error-container {
+  font-family: sans-serif;
+}
+
+.graphiql-explorer-root {
+  font-size: 12px;
+  overflow: scroll;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  padding: 8px;
+  font-family: Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace;
+}
+
+.graphiql-explorer-root-view {
+  margin-bottom: 1em;
+  padding-bottom: 0.5em;
+}
+
+.graphiql-explorer-border-bottom-gray {
+  border-bottom: 1px solid #d6d6d6;
+}
+
+.graphiql-explorer-operation {
+  color: #B11A04;
+  padding-bottom: 4px;
+}
+
+.graphiql-explorer-cursor-pointer {
+  cursor: pointer;
+}
+
+.graphiql-explorer-fieldname {
+  color: rgb(31, 97, 160);
+}
+
+.graphiql-explorer-args {
+  margin-left: 16px;
+}
+
+.graphiql-explorer-abstractfields {
+  margin-left: 16px;
+}
+.graphiql-explorer-abstractfields-color {
+  color: #CA9800;
+}
+.graphiql-explorer-abstractargs-bool {
+  background-color: white;
+  color: #D47509;
+}
+.graphiql-explorer-abstractargs-enum {
+  background-color: white;
+  color: #0B7FC7;
+}
+.graphiql-explorer-abstractargs-obj {
+  margin-left: 16px;
+}
+.graphiql-explorer-abstractargs-generic {
+  margin-left: 16px;
+}
+.graphiql-explorer-abstractargs-label-color {
+  color: #8B2BB9;
+}
+
+
+
+
+
+
+

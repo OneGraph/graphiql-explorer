@@ -25,7 +25,6 @@ import {
   parse,
   print,
 } from 'graphql';
-
 import type {
   ArgumentNode,
   DocumentNode,
@@ -47,6 +46,7 @@ import type {
   SelectionNode,
   ValueNode,
 } from 'graphql';
+import './Explorer.css';
 
 type Field = GraphQLField<any, any>;
 
@@ -580,7 +580,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         if (argType.name === 'Boolean') {
           input = (
             <select
-              style={{backgroundColor: 'white', color: '#D47509'}}
+              className="graphiql-explorer-abstractargs-bool"
               onChange={this.props.setArgValue}
               value={
                 argValue.kind === 'BooleanValue' ? argValue.value : undefined
@@ -606,7 +606,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         if (argValue.kind === 'EnumValue') {
           input = (
             <select
-              style={{backgroundColor: 'white', color: '#0B7FC7'}}
+              className="graphiql-explorer-abstractargs-enum"
               onChange={this.props.setArgValue}
               value={argValue.value}>
               {argType.getValues().map(value => (
@@ -654,10 +654,10 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     return (
       <div data-arg-name={arg.name} data-arg-type={argType.name}>
         <span
-          style={{cursor: 'pointer'}}
+          className="graphiql-explorer-cursor-pointer"
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
           <input readOnly type="checkbox" checked={!!argValue} />
-          <span title={arg.description} style={{color: '#8B2BB9'}}>
+          <span title={arg.description} className="graphiql-explorer-abstractargs-label-color">
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
           </span>
@@ -758,15 +758,15 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
     return (
       <div>
         <span
-          style={{cursor: 'pointer'}}
+          className="graphiql-explorer-cursor-pointer"
           onClick={selection ? this._removeFragment : this._addFragment}>
           <input readOnly type="checkbox" checked={!!selection} />
-          <span style={{color: '#CA9800'}}>
+          <span className="graphiql-explorer-abstractfields-color">
             {this.props.implementingType.name}
           </span>
         </span>
         {selection ? (
-          <div style={{marginLeft: 16}}>
+          <div className="graphiql-explorer-abstractfields">
             {Object.keys(fields)
               .sort()
               .map(fieldName => (
@@ -974,7 +974,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       <div className="graphiql-explorer-node">
         <span
           title={field.description}
-          style={{cursor: 'pointer'}}
+          className="graphiql-explorer-cursor-pointer"
           data-field-name={field.name}
           data-field-type={type.name}
           onClick={
@@ -983,10 +983,10 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
               : this._addFieldToSelections
           }>
           <input readOnly type="checkbox" checked={!!selection} />
-          <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
+          <span className="graphiql-explorer-fieldname">{field.name}</span>
         </span>
         {selection && args.length ? (
-          <div style={{marginLeft: 16}}>
+          <div className="graphiql-explorer-args">
             {args.map(arg => (
               <ArgView
                 key={arg.name}
@@ -1185,12 +1185,9 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     const selections = operationDef.selectionSet.selections;
     return (
       <div
-        style={{
-          borderBottom: operation !== 'subscription' ? '1px solid #d6d6d6' : '',
-          marginBottom: '1em',
-          paddingBottom: '0.5em',
-        }}>
-        <div style={{color: '#B11A04', paddingBottom: 4}}>{operation}</div>
+        className={`graphiql-explorer-root-view ${operation === 'subscription' ? 'graphiql-explorer-border-bottom-gray' : ''}`}
+      >
+        <div className="graphiql-explorer-operation">{operation}</div>
         {Object.keys(fields)
           .sort()
           .map(fieldName => (
@@ -1232,7 +1229,7 @@ class Explorer extends React.PureComponent<Props, State> {
     const {schema, query, makeDefaultArg} = this.props;
     if (!schema) {
       return (
-        <div style={{fontFamily: 'sans-serif'}} className="error-container">
+        <div className="graphiql-explorer-error-container error-container">
           No Schema Available
         </div>
       );
@@ -1257,16 +1254,6 @@ class Explorer extends React.PureComponent<Props, State> {
       <div
         ref={ref => {
           this._ref = ref;
-        }}
-        style={{
-          fontSize: 12,
-          overflow: 'scroll',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          margin: 0,
-          padding: 8,
-          fontFamily:
-            'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace',
         }}
         className="graphiql-explorer-root">
         {queryFields ? (
@@ -1344,15 +1331,16 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
     width: 380,
   };
   render() {
+    const { width, explorerIsOpen, onToggleExplorer } = this.props;
+    const customStyles = {}
+    if (width) {
+      customStyles.width = width;
+    }
     return (
       <div
-        className="historyPaneWrap"
-        style={{
-          height: '100%',
-          width: this.props.width,
-          zIndex: 7,
-          display: this.props.explorerIsOpen ? 'block' : 'none',
-        }}>
+        className={`historyPaneWrap ${explorerIsOpen ? 'graphiql-explorer-container' : 'graphiql-explorer-container-closed'}`}
+        style={customStyles}
+      >
         <div className="history-title-bar">
           <div className="history-title">Explorer</div>
           <div className="doc-explorer-rhs">
