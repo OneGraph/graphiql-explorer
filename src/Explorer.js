@@ -657,7 +657,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           className="graphiql-explorer-cursor-pointer"
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
           <input readOnly type="checkbox" checked={!!argValue} />
-          <span title={arg.description} className="graphiql-explorer-abstractargs-label-color">
+          <span title={arg.description} className="graphiql-explorer-abstractargs-label">
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
           </span>
@@ -761,7 +761,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
           className="graphiql-explorer-cursor-pointer"
           onClick={selection ? this._removeFragment : this._addFragment}>
           <input readOnly type="checkbox" checked={!!selection} />
-          <span className="graphiql-explorer-abstractfields-color">
+          <span className="graphiql-explorer-abstractfields-label">
             {this.props.implementingType.name}
           </span>
         </span>
