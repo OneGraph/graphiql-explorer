@@ -652,9 +652,13 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     }
 
     return (
-      <div data-arg-name={arg.name} data-arg-type={argType.name}>
+      <div
+        data-arg-name={arg.name}
+        data-arg-type={argType.name}
+        className="graphiql-explorer-args-wrapper"
+      >
         <span
-          className="graphiql-explorer-arg-wrapper"
+          className="graphiql-explorer-arg-indiv"
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
           <input readOnly type="checkbox" checked={!!argValue} />
           <span title={arg.description} className="graphiql-explorer-abstractargs-label">
@@ -756,9 +760,11 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         : []
       : [];
     return (
-      <div>
+      <div
+        className="graphiql-explorer-args-wrapper"
+      >
         <span
-          className="graphiql-explorer-arg-wrapper"
+          className="graphiql-explorer-arg-indiv"
           onClick={selection ? this._removeFragment : this._addFragment}>
           <input readOnly type="checkbox" checked={!!selection} />
           <span className="graphiql-explorer-abstractfields-label">
@@ -974,7 +980,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       <div className="graphiql-explorer-node">
         <span
           title={field.description}
-          className="graphiql-explorer-arg-wrapper"
+          className="graphiql-explorer-arg-indiv"
           data-field-name={field.name}
           data-field-type={type.name}
           onClick={
