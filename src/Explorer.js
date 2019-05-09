@@ -87,7 +87,7 @@ function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
 
   // Is there an `id` field?
   if (fields['id']) {
-    let res = ['id'];
+    const res = ['id'];
     if (fields['email']) {
       res.push('email');
     } else if (fields['name']) {
@@ -1297,10 +1297,10 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           </span>
 
           {!!this.props.onTypeName ? (
-            <>
+            <span>
               <br />
               {`on ${this.props.onTypeName}`}
-            </>
+            </span>
           ) : (
             ''
           )}
@@ -1433,7 +1433,8 @@ class Explorer extends React.PureComponent<Props, State> {
       const newOperationName = `unnamed${capitalize(kind)}${siblingDefs.length +
         1}`;
 
-      const firstFieldName = Object.keys(fields || {})[0] || 'placeholder';
+      const firstFieldName =
+        Object.keys(fields || {}).sort()[0] || 'placeholder';
 
       const selectionSet = {
         kind: 'SelectionSet',
