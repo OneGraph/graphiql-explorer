@@ -1146,7 +1146,7 @@ function memoizeParseQuery(query: string): DocumentNode {
 
 type RootViewProps = {|
   schema: GraphQLSchema,
-  fields: GraphQLFieldMap<any, any>,
+  fields: ?GraphQLFieldMap<any, any>,
   operation: 'query' | 'mutation' | 'subscription' | 'fragment',
   name: ?string,
   onTypeName: ?string,
@@ -1306,12 +1306,12 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           )}
         </div>
 
-        {Object.keys(fields)
+        {Object.keys(fields || {})
           .sort()
           .map(fieldName => (
             <FieldView
               key={fieldName}
-              field={fields[fieldName]}
+              field={(fields || {})[fieldName]}
               selections={selections}
               modifySelections={this._modifySelections}
               schema={schema}
@@ -1369,8 +1369,6 @@ class Explorer extends React.PureComponent<Props, State> {
       this.props.getDefaultScalarArgValue || defaultGetDefaultScalarArgValue;
 
     const definitions = parsedQuery.definitions;
-
-    console.log('parsedQuery: ', parsedQuery);
 
     const relevantDefinitions = definitions
       .map(definition => {
@@ -1499,80 +1497,58 @@ class Explorer extends React.PureComponent<Props, State> {
           const operationName =
             operation && operation.name && operation.name.value;
 
-          if (operation.kind === 'FragmentDefinition') {
-            const onOperationRename = newName => {
-              const newOperationDef = renameOperation(operation, newName);
-              this.props.onEdit(print(newOperationDef));
-            };
-            const fragmentTypeName = operation.typeCondition.name.value;
-            if (operation.typeCondition.kind === 'NamedType') {
-              const fragmentTypeFields = schema.getType(fragmentTypeName);
-              if (fragmentTypeFields instanceof GraphQLObjectType) {
-                return (
-                  <RootView
-                    key={index}
-                    fields={
-                      (fragmentTypeFields && fragmentTypeFields.getFields()) ||
-                      {}
-                    }
-                    operation="fragment"
-                    onTypeName={fragmentTypeName}
-                    name={operationName || ''}
-                    parsedQuery={parsedQuery}
-                    onOperationRename={onOperationRename}
-                    onEdit={this._onEdit}
-                    schema={schema}
-                    getDefaultFieldNames={getDefaultFieldNames}
-                    getDefaultScalarArgValue={getDefaultScalarArgValue}
-                    makeDefaultArg={makeDefaultArg}
-                  />
-                );
-              } else {
-                return <div>fragment {operationName}</div>;
-              }
-            } else {
-              return <div>fragment {operationName}</div>;
-            }
-          } else {
-            const operationKind =
-              operation.kind === 'FragmentDefinition'
-                ? 'fragment'
-                : (operation && operation.operation) || 'query';
+          const operationKind =
+            operation.kind === 'FragmentDefinition'
+              ? 'fragment'
+              : (operation && operation.operation) || 'query';
 
-            const onOperationRename = newName => {
-              const newOperationDef = renameOperation(operation, newName);
-              this.props.onEdit(print(newOperationDef));
-            };
+          const onOperationRename = newName => {
+            const newOperationDef = renameOperation(operation, newName);
+            this.props.onEdit(print(newOperationDef));
+          };
 
-            const fields =
-              ('query' && queryFields) ||
-              (operationKind === 'mutation' && mutationFields) ||
-              (operationKind === 'subscription' && subscriptionFields) ||
-              (operation.kind === 'FragmentDefinition' &&
-                operation.typeCondition.kind === 'NamedType' &&
-                schema.getType(operation.typeCondition.name.value));
+          const fragmentType =
+            operation.kind === 'FragmentDefinition' &&
+            operation.typeCondition.kind === 'NamedType' &&
+            schema.getType(operation.typeCondition.name.value);
 
-            const fragmentTypeName =
-              operation.kind === 'FragmentDefinition' &&
-              operation.typeCondition.name.value;
+          const fragmentFields =
+            fragmentType instanceof GraphQLObjectType
+              ? fragmentType.getFields()
+              : null;
 
-            return (
-              <RootView
-                key={index}
-                fields={fields}
-                operation={operationKind}
-                name={operationName}
-                parsedQuery={parsedQuery}
-                onOperationRename={onOperationRename}
-                onTypeName={fragmentTypeName}
-                onEdit={this._onEdit}
-                schema={schema}
-                getDefaultFieldNames={getDefaultFieldNames}
-                getDefaultScalarArgValue={getDefaultScalarArgValue}
-                makeDefaultArg={makeDefaultArg}
-              />
-            );
-          }
+          const fields =
+            operationKind === 'query'
+              ? queryFields
+              : operationKind === 'mutation'
+              ? mutationFields
+              : operationKind === 'subscription'
+              ? subscriptionFields
+              : operation.kind === 'FragmentDefinition'
+              ? fragmentFields
+              : null;
+
+          const fragmentTypeName =
+            operation.kind === 'FragmentDefinition'
+              ? operation.typeCondition.name.value
+              : null;
+
+          return (
+            <RootView
+              key={index}
+              fields={fields}
+              operation={operationKind}
+              name={operationName}
+              parsedQuery={parsedQuery}
+              onOperationRename={onOperationRename}
+              onTypeName={fragmentTypeName}
+              onEdit={this._onEdit}
+              schema={schema}
+              getDefaultFieldNames={getDefaultFieldNames}
+              getDefaultScalarArgValue={getDefaultScalarArgValue}
+              makeDefaultArg={makeDefaultArg}
+            />
+          );
         })}
 
         <div
