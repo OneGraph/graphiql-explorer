@@ -1284,7 +1284,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
                 borderBottom: '1px solid #888',
                 outline: 'none',
                 color: 'rgb(193, 42,80)',
-                width: `${Math.max(1, (this.props.name || '').length)}ch`,
+                width: `${Math.max(4, (this.props.name || '').length)}ch`,
               }}
               autoComplete="false"
               placeholder={`Name your ${operation}`}
