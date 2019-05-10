@@ -1266,6 +1266,8 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     const operationDef = this._getOperationDef(parsedQuery);
     const selections = operationDef.selectionSet.selections;
 
+    const operationDisplayName = this.props.name || `Name your ${operation}`;
+
     return (
       <div
         id={`${operation}-${name || 'unknown'}`}
@@ -1275,16 +1277,15 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           paddingBottom: '0.5em',
         }}>
         <div style={{color: '#B11A04', paddingBottom: 4}}>
-          {operation}
+          {operation}{' '}
           <span style={{color: 'rgb(193, 42,80)'}}>
-            "
             <input
               style={{
                 border: 'none',
                 borderBottom: '1px solid #888',
                 outline: 'none',
                 color: 'rgb(193, 42,80)',
-                width: `${Math.max(4, (this.props.name || '').length)}ch`,
+                width: `${Math.max(4, operationDisplayName.length)}ch`,
               }}
               autoComplete="false"
               placeholder={`Name your ${operation}`}
@@ -1293,9 +1294,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
                 this.props.onOperationRename(event.target.value)
               }
             />
-            "
           </span>
-
           {!!this.props.onTypeName ? (
             <span>
               <br />
@@ -1430,8 +1429,9 @@ class Explorer extends React.PureComponent<Props, State> {
         return string.charAt(0).toUpperCase() + string.slice(1);
       };
 
-      const newOperationName = `unnamed${capitalize(kind)}${siblingDefs.length +
-        1}`;
+      const newOperationName = `unnamed${capitalize(kind)}${
+        siblingDefs.length === 0 ? '' : siblingDefs.length + 1
+      }`;
 
       const firstFieldName =
         Object.keys(fields || {}).sort()[0] || 'placeholder';
@@ -1561,10 +1561,20 @@ class Explorer extends React.PureComponent<Props, State> {
             width: '100%',
             textAlign: 'center',
           }}>
-          +<button onClick={() => addOperation('query')}>Query</button>
-          <button onClick={() => addOperation('mutation')}>Mutation</button>
-          <button onClick={() => addOperation('subscription')}>
-            Subscription
+          <button
+            style={{width: '100%', display: 'block'}}
+            onClick={() => addOperation('query')}>
+            + Query
+          </button>
+          <button
+            style={{width: '100%', display: 'block'}}
+            onClick={() => addOperation('mutation')}>
+            + Mutation
+          </button>
+          <button
+            style={{width: '100%', display: 'block'}}
+            onClick={() => addOperation('subscription')}>
+            + Subscription
           </button>
         </div>
       </div>
