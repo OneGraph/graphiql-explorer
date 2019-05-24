@@ -1431,9 +1431,9 @@ class Explorer extends React.PureComponent<Props, State> {
 
       const viewingDefaultOperation =
         parsedQuery.definitions.length === 1 &&
-        parsedQuery.definitions[0] == DEFAULT_DOCUMENT.definitions[0];
+        parsedQuery.definitions[0] === DEFAULT_DOCUMENT.definitions[0];
 
-      const siblingDefs = viewingDefaultOperation
+      const unnamedSiblingDefs = viewingDefaultOperation
         ? []
         : existingDefs.filter(def => {
             if (def.kind === 'OperationDefinition') {
@@ -1449,7 +1449,7 @@ class Explorer extends React.PureComponent<Props, State> {
       };
 
       const newOperationName = `unnamed${capitalize(kind)}${
-        siblingDefs.length === 0 ? '' : siblingDefs.length + 1
+        unnamedSiblingDefs.length === 0 ? '' : unnamedSiblingDefs.length + 1
       }`;
 
       // Add this as the default field as it guarantees a valid selectionSet
@@ -1670,7 +1670,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           display: this.props.explorerIsOpen ? 'block' : 'none',
         }}>
         <div className="history-title-bar">
-          <div className="history-title">The Explorer</div>
+          <div className="history-title">Explorer</div>
           <div className="doc-explorer-rhs">
             <div
               className="docExplorerHide"
