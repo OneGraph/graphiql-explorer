@@ -1369,15 +1369,6 @@ class Explorer extends React.PureComponent<Props, State> {
     };
 
     const addOperation = (kind: 'query' | 'mutation' | 'subscription') => {
-      const fields =
-        kind === 'query'
-          ? queryFields
-          : kind === 'mutation'
-          ? mutationFields
-          : kind === 'subscription'
-          ? subscriptionFields
-          : {};
-
       const existingDefs = parsedQuery.definitions;
 
       const siblingDefs = existingDefs.filter(def => {
