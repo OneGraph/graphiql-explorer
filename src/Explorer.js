@@ -1029,6 +1029,11 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
               ? this._removeFieldFromSelections()
               : this._addFieldToSelections(event);
           }}>
+          {isObjectType(type) ? (
+            <span style={{color: 'rgb(31, 97, 160)'}}>
+              {!!selection ? '▼' : '▶'}
+            </span>
+          ) : null}
           <input readOnly type="checkbox" checked={!!selection} />
           <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
         </span>
@@ -1150,8 +1155,10 @@ type RootViewProps = {|
   operation: 'query' | 'mutation' | 'subscription' | 'fragment',
   name: ?string,
   onTypeName: ?string,
-  parsedQuery: DocumentNode,
-  onEdit: (query: string) => void,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
+  onEdit: (
+    operationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode,
+  ) => void,
   onOperationRename: (query: string) => void,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
@@ -1160,29 +1167,7 @@ type RootViewProps = {|
 
 class RootView extends React.PureComponent<RootViewProps, {}> {
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
-  _getOperationDef = (
-    parsedQuery: DocumentNode,
-  ): OperationDefinitionNode | FragmentDefinitionNode => {
-    const operation = parsedQuery.definitions.find(definition => {
-      const nameMatches =
-        definition.kind === 'OperationDefinition' ||
-        definition.kind === 'FragmentDefinition'
-          ? definition.name == null || definition.name.value === this.props.name
-          : false;
-
-      if (!nameMatches) return false;
-
-      if (definition.kind === 'OperationDefinition') {
-        const operationMatches = definition.operation === this.props.operation;
-        return operationMatches;
-      } else if (definition.kind === 'FragmentDefinition') {
-        const isFragment = this.props.operation === 'fragment';
-        return isFragment;
-      }
-
-      return false;
-    });
-
+  _temp = (): OperationDefinitionNode => {
     let defaultOperation = {
       kind: 'OperationDefinition',
       operation:
@@ -1192,22 +1177,12 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
         selections: [],
       },
     };
-
-    if (
-      !operation ||
-      (operation.kind !== 'OperationDefinition' &&
-        operation.kind !== 'FragmentDefinition')
-    )
-      return defaultOperation;
-
-    let result: OperationDefinitionNode | FragmentDefinitionNode = operation;
-
-    return result;
+    return defaultOperation;
   };
 
   _modifySelections = (selections: Selections) => {
-    const {parsedQuery} = this.props;
-    let operationDef = this._getOperationDef(parsedQuery);
+    let operationDef: FragmentDefinitionNode | OperationDefinitionNode = this
+      .props.definition;
 
     if (
       operationDef.selectionSet.selections.length === 0 &&
@@ -1215,43 +1190,31 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     ) {
       operationDef = this._previousOperationDef;
     }
+
+    let newOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
+
     if (selections.length === 0) {
       this._previousOperationDef = operationDef;
-      this.props.onEdit(
-        print({
-          ...parsedQuery,
-          definitions: parsedQuery.definitions.filter(
-            definition => definition !== operationDef,
-          ),
-        }),
-      );
-    } else {
-      const newOperationDef = {
+      newOperationDef = null;
+    } else if (operationDef.kind === 'FragmentDefinition') {
+      newOperationDef = {
         ...operationDef,
         selectionSet: {
           ...operationDef.selectionSet,
           selections,
         },
       };
-      let replaced = false;
-      const newDefinitions = parsedQuery.definitions.map(op => {
-        if (op === operationDef) {
-          replaced = true;
-          return newOperationDef;
-        } else {
-          return op;
-        }
-      });
-
-      this.props.onEdit(
-        print({
-          ...parsedQuery,
-          definitions: replaced
-            ? newDefinitions
-            : [newOperationDef, ...newDefinitions],
-        }),
-      );
+    } else if (operationDef.kind === 'OperationDefinition') {
+      newOperationDef = {
+        ...operationDef,
+        selectionSet: {
+          ...operationDef.selectionSet,
+          selections,
+        },
+      };
     }
+
+    this.props.onEdit(newOperationDef);
   };
 
   render() {
@@ -1259,11 +1222,11 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
       fields,
       operation,
       name,
-      parsedQuery,
+      definition,
       schema,
       getDefaultFieldNames,
     } = this.props;
-    const operationDef = this._getOperationDef(parsedQuery);
+    const operationDef = definition;
     const selections = operationDef.selectionSet.selections;
 
     const operationDisplayName = this.props.name || `Name your ${operation}`;
@@ -1344,6 +1307,7 @@ class Explorer extends React.PureComponent<Props, State> {
 
   render() {
     const {schema, query, makeDefaultArg} = this.props;
+
     if (!schema) {
       return (
         <div style={{fontFamily: 'sans-serif'}} className="error-container">
@@ -1433,8 +1397,9 @@ class Explorer extends React.PureComponent<Props, State> {
         siblingDefs.length === 0 ? '' : siblingDefs.length + 1
       }`;
 
-      const firstFieldName =
-        Object.keys(fields || {}).sort()[0] || 'placeholder';
+      // Add this as the default field as it guarantees a valid selectionSet
+      // and is the least-surprising field to auto-expand
+      const firstFieldName = '__typename';
 
       const selectionSet = {
         kind: 'SelectionSet',
@@ -1540,10 +1505,23 @@ class Explorer extends React.PureComponent<Props, State> {
               fields={fields}
               operation={operationKind}
               name={operationName}
-              parsedQuery={parsedQuery}
+              definition={definition}
               onOperationRename={onOperationRename}
               onTypeName={fragmentTypeName}
-              onEdit={this._onEdit}
+              onEdit={newDefinition => {
+                const newQuery = {
+                  ...parsedQuery,
+                  definitions: parsedQuery.definitions.map(existingDefinition =>
+                    existingDefinition === definition
+                      ? newDefinition
+                      : existingDefinition,
+                  ),
+                };
+
+                const textualNewQuery = print(newQuery);
+
+                this.props.onEdit(textualNewQuery);
+              }}
               schema={schema}
               getDefaultFieldNames={getDefaultFieldNames}
               getDefaultScalarArgValue={getDefaultScalarArgValue}
