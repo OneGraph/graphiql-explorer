@@ -74,6 +74,7 @@ type Props = {
   makeDefaultArg?: ?MakeDefaultArg,
   onToggleExplorer: () => void,
   explorerIsOpen: boolean,
+  onRunOperation?: (name: ?string) => void,
 };
 
 type State = {|
@@ -207,6 +208,7 @@ type InputArgViewProps = {|
   modifyFields: (fields: $ReadOnlyArray<ObjectFieldNode>) => void,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
 |};
 
 class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
@@ -326,6 +328,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
         makeDefaultArg={this.props.makeDefaultArg}
+        onRunOperation={this.props.onRunOperation}
       />
     );
   }
@@ -338,6 +341,7 @@ type ArgViewProps = {|
   modifyArguments: (argumentNodes: $ReadOnlyArray<ArgumentNode>) => void,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
 |};
 
 type ArgViewState = {||};
@@ -498,10 +502,15 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
         makeDefaultArg={this.props.makeDefaultArg}
+        onRunOperation={event => this.props.onRunOperation()}
       />
     );
   }
 }
+
+const isRunShortcut = event => {
+  return event.metaKey && event.keyCode === 13;
+};
 
 type AbstractArgViewProps = {|
   argValue: ?ValueNode,
@@ -513,12 +522,14 @@ type AbstractArgViewProps = {|
   removeArg: () => void,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
 |};
 
 type ScalarInputProps = {|
   arg: GraphQLArgument,
   argValue: ValueNode,
   setArgValue: (event: SyntheticInputEvent<*>) => void,
+  onRunOperation: void => void,
 |};
 
 class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
@@ -560,6 +571,11 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
             this._ref = ref;
           }}
           type="text"
+          onKeyDown={event => {
+            if (isRunShortcut(event)) {
+              this.props.onRunOperation(event);
+            }
+          }}
           onChange={this._handleChange}
           value={value}
         />
@@ -602,6 +618,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
               setArgValue={this.props.setArgValue}
               arg={arg}
               argValue={argValue}
+              onRunOperation={() => this.props.onRunOperation()}
             />
           );
         }
@@ -640,6 +657,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
                   modifyFields={this.props.setArgFields}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
                 />
               ))}
             </div>
@@ -679,6 +697,7 @@ type AbstractViewProps = {|
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
 |};
 
 class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
@@ -782,6 +801,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
                 />
               ))}
           </div>
@@ -799,6 +819,7 @@ type FieldViewProps = {|
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
 |};
 
 function defaultInputObjectFields(
@@ -1048,6 +1069,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                 modifyArguments={this._setArguments}
                 getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                 makeDefaultArg={this.props.makeDefaultArg}
+                onRunOperation={this.props.onRunOperation}
               />
             ))}
           </div>
@@ -1081,6 +1103,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
                 />
               ))}
             {isInterfaceType(type) || isUnionType(type)
@@ -1098,6 +1121,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                         this.props.getDefaultScalarArgValue
                       }
                       makeDefaultArg={this.props.makeDefaultArg}
+                      onRunOperation={this.props.onRunOperation}
                     />
                   ))
               : null}
@@ -1123,9 +1147,29 @@ function parseQuery(text: string): ?DocumentNode | Error {
   }
 }
 
+const DEFAULT_OPERATION = {
+  kind: 'OperationDefinition',
+  operation: 'query',
+  variableDefinitions: [],
+  directives: [],
+  selectionSet: {
+    kind: 'SelectionSet',
+    selections: [
+      {
+        kind: 'Field',
+        name: {
+          kind: 'Name',
+          value: '__type',
+        },
+        arguments: [],
+        directives: [],
+      },
+    ],
+  },
+};
 const DEFAULT_DOCUMENT = {
   kind: 'Document',
-  definitions: [],
+  definitions: [DEFAULT_OPERATION],
 };
 let parseQueryMemoize: ?[string, DocumentNode] = null;
 function memoizeParseQuery(query: string): DocumentNode {
@@ -1160,6 +1204,7 @@ type RootViewProps = {|
     operationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode,
   ) => void,
   onOperationRename: (query: string) => void,
+  onRunOperation: (name: ?string) => void,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
@@ -1253,6 +1298,11 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               autoComplete="false"
               placeholder={`Name your ${operation}`}
               value={this.props.name}
+              onKeyDown={event => {
+                if (isRunShortcut(event)) {
+                  this.props.onRunOperation(this.props.name);
+                }
+              }}
               onChange={event =>
                 this.props.onOperationRename(event.target.value)
               }
@@ -1280,6 +1330,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               getDefaultFieldNames={getDefaultFieldNames}
               getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
               makeDefaultArg={this.props.makeDefaultArg}
+              onRunOperation={this.props.onRunOperation}
             />
           ))}
       </div>
@@ -1333,7 +1384,7 @@ class Explorer extends React.PureComponent<Props, State> {
 
     const definitions = parsedQuery.definitions;
 
-    const relevantDefinitions = definitions
+    const _relevantDefinitions = definitions
       .map(definition => {
         if (definition.kind === 'FragmentDefinition') {
           return definition;
@@ -1344,6 +1395,13 @@ class Explorer extends React.PureComponent<Props, State> {
         }
       })
       .filter(Boolean);
+
+    const relevantDefinitions =
+      // If we don't have any relevant definitions from the parsed document,
+      // then at least show an expanded Query selection
+      _relevantDefinitions.length === 0
+        ? DEFAULT_DOCUMENT.definitions
+        : _relevantDefinitions;
 
     const renameOperation = (targetOperation, name) => {
       const newName =
@@ -1371,14 +1429,20 @@ class Explorer extends React.PureComponent<Props, State> {
     const addOperation = (kind: 'query' | 'mutation' | 'subscription') => {
       const existingDefs = parsedQuery.definitions;
 
-      const siblingDefs = existingDefs.filter(def => {
-        if (def.kind === 'OperationDefinition') {
-          return def.operation === kind;
-        } else {
-          // Don't support adding fragments from explorer
-          return false;
-        }
-      });
+      const viewingDefaultOperation =
+        parsedQuery.definitions.length === 1 &&
+        parsedQuery.definitions[0] == DEFAULT_DOCUMENT.definitions[0];
+
+      const siblingDefs = viewingDefaultOperation
+        ? []
+        : existingDefs.filter(def => {
+            if (def.kind === 'OperationDefinition') {
+              return def.operation === kind;
+            } else {
+              // Don't support adding fragments from explorer
+              return false;
+            }
+          });
 
       const capitalize = string => {
         return string.charAt(0).toUpperCase() + string.slice(1);
@@ -1421,7 +1485,12 @@ class Explorer extends React.PureComponent<Props, State> {
         loc: null,
       };
 
-      const newDefinitions = [...parsedQuery.definitions, newDefinition];
+      const newDefinitions =
+        // If we only have our default operation in the document right now, then
+        // just replace it with our new definition
+        viewingDefaultOperation
+          ? [newDefinition]
+          : [...parsedQuery.definitions, newDefinition];
 
       const newOperationDef = {
         ...parsedQuery,
@@ -1517,6 +1586,12 @@ class Explorer extends React.PureComponent<Props, State> {
               getDefaultFieldNames={getDefaultFieldNames}
               getDefaultScalarArgValue={getDefaultScalarArgValue}
               makeDefaultArg={makeDefaultArg}
+              onRunOperation={() => {
+                console.log('Run operation: ', operationName);
+                if (!!this.props.onRunOperation) {
+                  this.props.onRunOperation(operationName);
+                }
+              }}
             />
           );
         })}
