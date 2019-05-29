@@ -54,7 +54,7 @@ import type {
 const print = graphQLAst => {
   return gqlPrint(graphQLAst).replace(
     /__typename/g,
-    '__typename' + ' # This is a placeholder, you may safely ignore it',
+    '__typename # This is a placeholder to tell the type of this operation, you may safely ignore it',
   );
 };
 
@@ -1008,21 +1008,6 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
   };
 
   _addFieldToSelections = rawSubfields => {
-    const subFields: Array<FieldNode> = !!rawSubfields
-      ? Object.keys(rawSubfields).map(fieldName => {
-          return {
-            kind: 'Field',
-            name: {kind: 'Name', value: fieldName},
-            arguments: [],
-          };
-        })
-      : [];
-
-    const subSelectionSet: SelectionSetNode = {
-      kind: 'SelectionSet',
-      selections: subFields,
-    };
-
     const nextSelections = [
       ...this.props.selections,
       this._previousSelection || {
