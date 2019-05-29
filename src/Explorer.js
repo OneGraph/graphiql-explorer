@@ -25,7 +25,7 @@ import {
   isUnionType,
   isWrappingType,
   parse,
-  print,
+  print as gqlPrint,
 } from 'graphql';
 
 import type {
@@ -50,6 +50,13 @@ import type {
   SelectionSetNode,
   ValueNode,
 } from 'graphql';
+
+const print = graphQLAst => {
+  return gqlPrint(graphQLAst).replace(
+    /__typename/g,
+    '__typename' + ' # This is a placeholder, you may safely ignore it',
+  );
+};
 
 type Field = GraphQLField<any, any>;
 
@@ -82,6 +89,56 @@ type State = {|
 |};
 
 type Selections = $ReadOnlyArray<SelectionNode>;
+
+const capitalize = string => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
+const graphiqlArrowOpen = (
+  <svg width="12" height="9">
+    <path fill="#666" d="M 0 2 L 9 2 L 4.5 7.5 z" />
+  </svg>
+);
+
+const graphiqlArrowClosed = (
+  <svg width="12" height="9">
+    <path fill="#666" d="M 0 0 L 0 9 L 5.5 4.5 z" />
+  </svg>
+);
+
+const checkboxChecked = (
+  <svg
+    style={{marginRight: '3px', marginLeft: '-3px'}}
+    width="12"
+    height="12"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M16 0H2C0.9 0 0 0.9 0 2V16C0 17.1 0.9 18 2 18H16C17.1 18 18 17.1 18 16V2C18 0.9 17.1 0 16 0ZM16 16H2V2H16V16ZM14.99 6L13.58 4.58L6.99 11.17L4.41 8.6L2.99 10.01L6.99 14L14.99 6Z"
+      fill="#666"
+    />
+  </svg>
+);
+
+const checkboxEmpty = (
+  <svg
+    style={{marginRight: '3px', marginLeft: '-3px'}}
+    width="12"
+    height="12"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M16 2V16H2V2H16ZM16 0H2C0.9 0 0 0.9 0 2V16C0 17.1 0.9 18 2 18H16C17.1 18 18 17.1 18 16V2C18 0.9 17.1 0 16 0Z"
+      fill="#CCC"
+    />
+  </svg>
+);
+
+const Checkbox = props => {
+  return props.checked ? checkboxChecked : checkboxEmpty;
+};
 
 function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
   const fields = type.getFields();
@@ -502,15 +559,15 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
         makeDefaultArg={this.props.makeDefaultArg}
-        onRunOperation={event => this.props.onRunOperation()}
+        onRunOperation={this.props.onRunOperation}
       />
     );
   }
 }
 
-const isRunShortcut = event => {
-  return event.metaKey && event.keyCode === 13;
-};
+function isRunShortcut(event) {
+  return event.metaKey && event.key === 'Enter';
+}
 
 type AbstractArgViewProps = {|
   argValue: ?ValueNode,
@@ -550,6 +607,7 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
       input.setSelectionRange(0, input.value.length);
     }
   }
+
   render() {
     const {arg, argValue} = this.props;
     const argType = unwrapInputType(arg.type);
@@ -618,7 +676,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
               setArgValue={this.props.setArgValue}
               arg={arg}
               argValue={argValue}
-              onRunOperation={() => this.props.onRunOperation()}
+              onRunOperation={this.props.onRunOperation}
             />
           );
         }
@@ -673,17 +731,23 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     }
 
     return (
-      <div data-arg-name={arg.name} data-arg-type={argType.name}>
+      <div
+        style={{
+          cursor: 'pointer',
+          minHeight: '16px',
+        }}
+        data-arg-name={arg.name}
+        data-arg-type={argType.name}>
         <span
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
-          <input readOnly type="checkbox" checked={!!argValue} />
+          <Checkbox checked={!!argValue} />
           <span title={arg.description} style={{color: '#8B2BB9'}}>
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
           </span>
         </span>{' '}
-        {input}
+        {input || <span />}
       </div>
     );
   }
@@ -782,7 +846,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         <span
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
-          <input readOnly type="checkbox" checked={!!selection} />
+          <Checkbox checked={!!selection} />
           <span style={{color: '#CA9800'}}>
             {this.props.implementingType.name}
           </span>
@@ -903,12 +967,7 @@ function defaultArgs(
 
 class FieldView extends React.PureComponent<FieldViewProps, {}> {
   _previousSelection: ?SelectionNode;
-  _addFieldToSelections = event => {
-    const fieldType = getNamedType(this.props.field.type);
-    const rawSubfields = isObjectType(fieldType) && fieldType.getFields();
-
-    const shouldSelectAllSubfields = !!rawSubfields && event.altKey;
-
+  _addAllFieldsToSelections = rawSubfields => {
     const subFields: Array<FieldNode> = !!rawSubfields
       ? Object.keys(rawSubfields).map(fieldName => {
           return {
@@ -921,44 +980,79 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
 
     const subSelectionSet: SelectionSetNode = {
       kind: 'SelectionSet',
-      selections: subFields || [],
+      selections: subFields,
     };
 
-    const nextSelections = shouldSelectAllSubfields
-      ? [
-          ...this.props.selections.filter(selection => {
-            if (selection.kind === 'InlineFragment') {
-              return true;
-            } else {
-              // Remove the current selection set for the target field
-              return selection.name.value !== this.props.field.name;
-            }
-          }),
-          {
-            kind: 'Field',
-            name: {kind: 'Name', value: this.props.field.name},
-            arguments: defaultArgs(
-              this.props.getDefaultScalarArgValue,
-              this.props.makeDefaultArg,
-              this.props.field,
-            ),
-            selectionSet: subSelectionSet,
-          },
-        ]
-      : [
-          ...this.props.selections,
-          this._previousSelection || {
-            kind: 'Field',
-            name: {kind: 'Name', value: this.props.field.name},
-            arguments: defaultArgs(
-              this.props.getDefaultScalarArgValue,
-              this.props.makeDefaultArg,
-              this.props.field,
-            ),
-          },
-        ];
+    const nextSelections = [
+      ...this.props.selections.filter(selection => {
+        if (selection.kind === 'InlineFragment') {
+          return true;
+        } else {
+          // Remove the current selection set for the target field
+          return selection.name.value !== this.props.field.name;
+        }
+      }),
+      {
+        kind: 'Field',
+        name: {kind: 'Name', value: this.props.field.name},
+        arguments: defaultArgs(
+          this.props.getDefaultScalarArgValue,
+          this.props.makeDefaultArg,
+          this.props.field,
+        ),
+        selectionSet: subSelectionSet,
+      },
+    ];
 
     this.props.modifySelections(nextSelections);
+  };
+
+  _addFieldToSelections = rawSubfields => {
+    const subFields: Array<FieldNode> = !!rawSubfields
+      ? Object.keys(rawSubfields).map(fieldName => {
+          return {
+            kind: 'Field',
+            name: {kind: 'Name', value: fieldName},
+            arguments: [],
+          };
+        })
+      : [];
+
+    const subSelectionSet: SelectionSetNode = {
+      kind: 'SelectionSet',
+      selections: subFields,
+    };
+
+    const nextSelections = [
+      ...this.props.selections,
+      this._previousSelection || {
+        kind: 'Field',
+        name: {kind: 'Name', value: this.props.field.name},
+        arguments: defaultArgs(
+          this.props.getDefaultScalarArgValue,
+          this.props.makeDefaultArg,
+          this.props.field,
+        ),
+      },
+    ];
+
+    this.props.modifySelections(nextSelections);
+  };
+
+  _handleUpdateSelections = event => {
+    const selection = this._getSelection();
+    if (selection && !event.altKey) {
+      this._removeFieldFromSelections();
+    } else {
+      const fieldType = getNamedType(this.props.field.type);
+      const rawSubfields = isObjectType(fieldType) && fieldType.getFields();
+
+      const shouldSelectAllSubfields = !!rawSubfields && event.altKey;
+
+      shouldSelectAllSubfields
+        ? this._addAllFieldsToSelections(rawSubfields)
+        : this._addFieldToSelections(rawSubfields);
+    }
   };
 
   _removeFieldFromSelections = () => {
@@ -1042,20 +1136,19 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       <div className="graphiql-explorer-node">
         <span
           title={field.description}
-          style={{cursor: 'pointer'}}
+          style={{
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            minHeight: '16px',
+          }}
           data-field-name={field.name}
           data-field-type={type.name}
-          onClick={event => {
-            return selection && !event.altKey
-              ? this._removeFieldFromSelections()
-              : this._addFieldToSelections(event);
-          }}>
+          onClick={this._handleUpdateSelections}>
           {isObjectType(type) ? (
-            <span style={{color: 'rgb(31, 97, 160)'}}>
-              {!!selection ? '▼' : '▶'}
-            </span>
+            <span>{!!selection ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
           ) : null}
-          <input readOnly type="checkbox" checked={!!selection} />
+          {isObjectType(type) ? null : <Checkbox checked={!!selection} />}
           <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
         </span>
         {selection && args.length ? (
@@ -1140,7 +1233,9 @@ function parseQuery(text: string): ?DocumentNode | Error {
     }
     return parse(
       text,
-      //, {noLocation: true}
+      // TODO: Uncomment this because it's faster
+      // Otherwise graphql will track locations when parsing, and we don't need that
+      {noLocation: true},
     );
   } catch (e) {
     return new Error(e);
@@ -1159,7 +1254,7 @@ const DEFAULT_OPERATION = {
         kind: 'Field',
         name: {
           kind: 'Name',
-          value: '__type',
+          value: '__typename',
         },
         arguments: [],
         directives: [],
@@ -1193,6 +1288,28 @@ function memoizeParseQuery(query: string): DocumentNode {
   }
 }
 
+const buttonStyle = {
+  fontSize: '1.2em',
+  padding: '0px',
+  backgroundColor: 'white',
+  border: 'none',
+  margin: '5px 0px',
+  height: '40px',
+  width: '100%',
+  display: 'block',
+  maxWidth: 'none',
+};
+
+const explorerActionsStyle = {
+  margin: '4px -8px -8px',
+  paddingLeft: '8px',
+  bottom: '0px',
+  width: '100%',
+  textAlign: 'center',
+  background: 'none',
+  borderTop: 'none',
+};
+
 type RootViewProps = {|
   schema: GraphQLSchema,
   fields: ?GraphQLFieldMap<any, any>,
@@ -1212,18 +1329,6 @@ type RootViewProps = {|
 
 class RootView extends React.PureComponent<RootViewProps, {}> {
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
-  _temp = (): OperationDefinitionNode => {
-    let defaultOperation = {
-      kind: 'OperationDefinition',
-      operation:
-        this.props.operation !== 'fragment' ? this.props.operation : 'query',
-      selectionSet: {
-        kind: 'SelectionSet',
-        selections: [],
-      },
-    };
-    return defaultOperation;
-  };
 
   _modifySelections = (selections: Selections) => {
     let operationDef: FragmentDefinitionNode | OperationDefinitionNode = this
@@ -1262,6 +1367,15 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     this.props.onEdit(newOperationDef);
   };
 
+  _onOperationRename = event =>
+    this.props.onOperationRename(event.target.value);
+
+  _handlePotentialRun = event => {
+    if (isRunShortcut(event)) {
+      this.props.onRunOperation(this.props.name);
+    }
+  };
+
   render() {
     const {
       fields,
@@ -1274,7 +1388,8 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     const operationDef = definition;
     const selections = operationDef.selectionSet.selections;
 
-    const operationDisplayName = this.props.name || `Name your ${operation}`;
+    const operationDisplayName =
+      this.props.name || `${capitalize(operation)} Name`;
 
     return (
       <div
@@ -1296,16 +1411,10 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
                 width: `${Math.max(4, operationDisplayName.length)}ch`,
               }}
               autoComplete="false"
-              placeholder={`Name your ${operation}`}
+              placeholder={`${capitalize(operation)} Name`}
               value={this.props.name}
-              onKeyDown={event => {
-                if (isRunShortcut(event)) {
-                  this.props.onRunOperation(this.props.name);
-                }
-              }}
-              onChange={event =>
-                this.props.onOperationRename(event.target.value)
-              }
+              onKeyDown={this._handlePotentialRun}
+              onChange={this._onOperationRename}
             />
           </span>
           {!!this.props.onTypeName ? (
@@ -1323,7 +1432,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           .map(fieldName => (
             <FieldView
               key={fieldName}
-              field={(fields || {})[fieldName]}
+              field={fields[fieldName]}
               selections={selections}
               modifySelections={this._modifySelections}
               schema={schema}
@@ -1384,7 +1493,7 @@ class Explorer extends React.PureComponent<Props, State> {
 
     const definitions = parsedQuery.definitions;
 
-    const _relevantDefinitions = definitions
+    const _relevantOperations = definitions
       .map(definition => {
         if (definition.kind === 'FragmentDefinition') {
           return definition;
@@ -1396,12 +1505,12 @@ class Explorer extends React.PureComponent<Props, State> {
       })
       .filter(Boolean);
 
-    const relevantDefinitions =
+    const relevantOperations =
       // If we don't have any relevant definitions from the parsed document,
       // then at least show an expanded Query selection
-      _relevantDefinitions.length === 0
+      _relevantOperations.length === 0
         ? DEFAULT_DOCUMENT.definitions
-        : _relevantDefinitions;
+        : _relevantOperations;
 
     const renameOperation = (targetOperation, name) => {
       const newName =
@@ -1444,16 +1553,12 @@ class Explorer extends React.PureComponent<Props, State> {
             }
           });
 
-      const capitalize = string => {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-      };
-
       const newOperationName = `unnamed${capitalize(kind)}${
         unnamedSiblingDefs.length === 0 ? '' : unnamedSiblingDefs.length + 1
       }`;
 
-      // Add this as the default field as it guarantees a valid selectionSet
-      // and is the least-surprising field to auto-expand
+      // Add this as the default field as it guarantees a valid selectionSet,
+      // then we'll strip it out in the printing phase
       const firstFieldName = '__typename';
 
       const selectionSet = {
@@ -1516,109 +1621,109 @@ class Explorer extends React.PureComponent<Props, State> {
             'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace',
         }}
         className="graphiql-explorer-root">
-        {relevantDefinitions.map((definition, index) => {
-          const operation:
-            | OperationDefinitionNode
-            | FragmentDefinitionNode = definition;
-          const operationName =
-            operation && operation.name && operation.name.value;
+        {relevantOperations.map(
+          (
+            operation: OperationDefinitionNode | FragmentDefinitionNode,
+            index,
+          ) => {
+            const operationName =
+              operation && operation.name && operation.name.value;
 
-          const operationKind =
-            operation.kind === 'FragmentDefinition'
-              ? 'fragment'
-              : (operation && operation.operation) || 'query';
+            const operationKind =
+              operation.kind === 'FragmentDefinition'
+                ? 'fragment'
+                : (operation && operation.operation) || 'query';
 
-          const onOperationRename = newName => {
-            const newOperationDef = renameOperation(operation, newName);
-            this.props.onEdit(print(newOperationDef));
-          };
+            const onOperationRename = newName => {
+              const newOperationDef = renameOperation(operation, newName);
+              this.props.onEdit(print(newOperationDef));
+            };
 
-          const fragmentType =
-            operation.kind === 'FragmentDefinition' &&
-            operation.typeCondition.kind === 'NamedType' &&
-            schema.getType(operation.typeCondition.name.value);
+            const fragmentType =
+              operation.kind === 'FragmentDefinition' &&
+              operation.typeCondition.kind === 'NamedType' &&
+              schema.getType(operation.typeCondition.name.value);
 
-          const fragmentFields =
-            fragmentType instanceof GraphQLObjectType
-              ? fragmentType.getFields()
-              : null;
+            const fragmentFields =
+              fragmentType instanceof GraphQLObjectType
+                ? fragmentType.getFields()
+                : null;
 
-          const fields =
-            operationKind === 'query'
-              ? queryFields
-              : operationKind === 'mutation'
-              ? mutationFields
-              : operationKind === 'subscription'
-              ? subscriptionFields
-              : operation.kind === 'FragmentDefinition'
-              ? fragmentFields
-              : null;
+            const fields =
+              operationKind === 'query'
+                ? queryFields
+                : operationKind === 'mutation'
+                ? mutationFields
+                : operationKind === 'subscription'
+                ? subscriptionFields
+                : operation.kind === 'FragmentDefinition'
+                ? fragmentFields
+                : null;
 
-          const fragmentTypeName =
-            operation.kind === 'FragmentDefinition'
-              ? operation.typeCondition.name.value
-              : null;
+            const fragmentTypeName =
+              operation.kind === 'FragmentDefinition'
+                ? operation.typeCondition.name.value
+                : null;
 
-          return (
-            <RootView
-              key={index}
-              fields={fields}
-              operation={operationKind}
-              name={operationName}
-              definition={definition}
-              onOperationRename={onOperationRename}
-              onTypeName={fragmentTypeName}
-              onEdit={newDefinition => {
-                const newQuery = {
-                  ...parsedQuery,
-                  definitions: parsedQuery.definitions.map(existingDefinition =>
-                    existingDefinition === definition
-                      ? newDefinition
-                      : existingDefinition,
-                  ),
-                };
+            return (
+              <RootView
+                key={index}
+                fields={fields}
+                operation={operationKind}
+                name={operationName}
+                definition={operation}
+                onOperationRename={onOperationRename}
+                onTypeName={fragmentTypeName}
+                onEdit={newDefinition => {
+                  const newQuery = {
+                    ...parsedQuery,
+                    definitions: parsedQuery.definitions.map(
+                      existingDefinition =>
+                        existingDefinition === operation
+                          ? newDefinition
+                          : existingDefinition,
+                    ),
+                  };
 
-                const textualNewQuery = print(newQuery);
+                  const textualNewQuery = print(newQuery);
 
-                this.props.onEdit(textualNewQuery);
-              }}
-              schema={schema}
-              getDefaultFieldNames={getDefaultFieldNames}
-              getDefaultScalarArgValue={getDefaultScalarArgValue}
-              makeDefaultArg={makeDefaultArg}
-              onRunOperation={() => {
-                console.log('Run operation: ', operationName);
-                if (!!this.props.onRunOperation) {
-                  this.props.onRunOperation(operationName);
-                }
-              }}
-            />
-          );
-        })}
-
-        <div
-          className="variable-editor-title"
-          style={{
-            margin: '4px -8px -8px',
-            paddingLeft: '8px',
-            bottom: '0px',
-            width: '100%',
-            textAlign: 'center',
-          }}>
+                  this.props.onEdit(textualNewQuery);
+                }}
+                schema={schema}
+                getDefaultFieldNames={getDefaultFieldNames}
+                getDefaultScalarArgValue={getDefaultScalarArgValue}
+                makeDefaultArg={makeDefaultArg}
+                onRunOperation={() => {
+                  console.log('Run operation: ', operationName);
+                  if (!!this.props.onRunOperation) {
+                    this.props.onRunOperation(operationName);
+                  }
+                }}
+              />
+            );
+          },
+        )}
+        <div className="variable-editor-title" style={explorerActionsStyle}>
           <button
-            style={{width: '100%', display: 'block'}}
+            className={'toolbar-button'}
+            style={buttonStyle}
+            type="link"
             onClick={() => addOperation('query')}>
-            + Query
+            + ADD NEW QUERY
           </button>
           <button
-            style={{width: '100%', display: 'block'}}
+            className={'toolbar-button'}
+            style={buttonStyle}
+            type="link"
             onClick={() => addOperation('mutation')}>
-            + Mutation
+            + ADD NEW MUTATION
           </button>
           <button
-            style={{width: '100%', display: 'block'}}
+            className={'toolbar-button'}
+            style={buttonStyle}
+            type="link"
             onClick={() => addOperation('subscription')}>
-            + Subscription
+            + ADD NEW SUBSCRIPTION
           </button>
         </div>
       </div>
