@@ -1714,7 +1714,7 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div style={{padding: 18, fontFamily: 'sans-serif'}}>
-          <div>Something went w rong</div>
+          <div>Something went wrong</div>
           <details style={{whiteSpace: 'pre-wrap'}}>
             {this.state.error ? this.state.error.toString() : null}
             <br />
