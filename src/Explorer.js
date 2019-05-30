@@ -699,18 +699,22 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           const fields = argType.getFields();
           input = (
             <div style={{marginLeft: 16}}>
-              {Object.keys(fields).map(fieldName => (
-                <InputArgView
-                  key={fieldName}
-                  arg={fields[fieldName]}
-                  parentField={this.props.parentField}
-                  selection={argValue}
-                  modifyFields={this.props.setArgFields}
-                  getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-                  makeDefaultArg={this.props.makeDefaultArg}
-                  onRunOperation={this.props.onRunOperation}
-                />
-              ))}
+              {Object.keys(fields)
+                .sort()
+                .map(fieldName => (
+                  <InputArgView
+                    key={fieldName}
+                    arg={fields[fieldName]}
+                    parentField={this.props.parentField}
+                    selection={argValue}
+                    modifyFields={this.props.setArgFields}
+                    getDefaultScalarArgValue={
+                      this.props.getDefaultScalarArgValue
+                    }
+                    makeDefaultArg={this.props.makeDefaultArg}
+                    onRunOperation={this.props.onRunOperation}
+                  />
+                ))}
             </div>
           );
         } else {
@@ -1111,7 +1115,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     const {field, schema, getDefaultFieldNames} = this.props;
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
-    const args = field.args;
+    const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
     const node = (
       <div className="graphiql-explorer-node">
         <span
