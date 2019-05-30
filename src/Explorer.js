@@ -732,7 +732,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         style={{
           cursor: 'pointer',
           minHeight: '16px',
-          '-webkit-user-select': 'none',
+          WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
         data-arg-name={arg.name}
@@ -1125,7 +1125,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
             display: 'inline-flex',
             alignItems: 'center',
             minHeight: '16px',
-            '-webkit-user-select': 'none',
+            WebkitUserSelect: 'none',
             userSelect: 'none',
           }}
           data-field-name={field.name}
