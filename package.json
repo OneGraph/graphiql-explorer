@@ -76,8 +76,6 @@
   "scripts": {
     "build": "bash ./resources/build.sh",
     "check": "flow check",
-    "lint": "eslint src",
-    "lint-check": "eslint --print-config .eslintrc | eslint-config-prettier-check",
     "prepublish": ". ./resources/prepublish.sh",
     "preversion": ". ./resources/checkgit.sh && npm test",
     "test": "npm run lint && npm run check && npm run build"
