@@ -25,7 +25,7 @@ import {
   isUnionType,
   isWrappingType,
   parse,
-  print as gqlPrint,
+  print,
 } from 'graphql';
 
 import type {
@@ -50,13 +50,6 @@ import type {
   SelectionSetNode,
   ValueNode,
 } from 'graphql';
-
-const print = graphQLAst => {
-  return gqlPrint(graphQLAst).replace(
-    /__typename/g,
-    '__typename # This is a placeholder to tell the type of this operation, you may safely ignore it',
-  );
-};
 
 type Field = GraphQLField<any, any>;
 
@@ -1218,8 +1211,8 @@ function parseQuery(text: string): ?DocumentNode | Error {
     }
     return parse(
       text,
-      // TODO: Uncomment this because it's faster
-      // Otherwise graphql will track locations when parsing, and we don't need that
+      // Tell graphql to not bother track locations when parsing, we don't need
+      // it and it's a tiny bit more expensive.
       {noLocation: true},
     );
   } catch (e) {
@@ -1231,20 +1224,11 @@ const DEFAULT_OPERATION = {
   kind: 'OperationDefinition',
   operation: 'query',
   variableDefinitions: [],
+  name: {kind: 'Name', value: 'MyQuery'},
   directives: [],
   selectionSet: {
     kind: 'SelectionSet',
-    selections: [
-      {
-        kind: 'Field',
-        name: {
-          kind: 'Name',
-          value: '__typename',
-        },
-        arguments: [],
-        directives: [],
-      },
-    ],
+    selections: [],
   },
 };
 const DEFAULT_DOCUMENT = {
@@ -1293,6 +1277,7 @@ const explorerActionsStyle = {
   textAlign: 'center',
   background: 'none',
   borderTop: 'none',
+  borderBottom: 'none',
 };
 
 type RootViewProps = {|
@@ -1380,9 +1365,9 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
       <div
         id={`${operation}-${name || 'unknown'}`}
         style={{
-          borderBottom: operation !== 'subscription' ? '1px solid #d6d6d6' : '',
-          marginBottom: '1em',
-          paddingBottom: '0.5em',
+          borderBottom: '1px solid #d6d6d6',
+          marginBottom: '0em',
+          paddingBottom: '1em',
         }}>
         <div style={{color: '#B11A04', paddingBottom: 4}}>
           {operation}{' '}
@@ -1527,7 +1512,7 @@ class Explorer extends React.PureComponent<Props, State> {
         parsedQuery.definitions.length === 1 &&
         parsedQuery.definitions[0] === DEFAULT_DOCUMENT.definitions[0];
 
-      const unnamedSiblingDefs = viewingDefaultOperation
+      const MySiblingDefs = viewingDefaultOperation
         ? []
         : existingDefs.filter(def => {
             if (def.kind === 'OperationDefinition') {
@@ -1538,13 +1523,12 @@ class Explorer extends React.PureComponent<Props, State> {
             }
           });
 
-      const newOperationName = `unnamed${capitalize(kind)}${
-        unnamedSiblingDefs.length === 0 ? '' : unnamedSiblingDefs.length + 1
+      const newOperationName = `My${capitalize(kind)}${
+        MySiblingDefs.length === 0 ? '' : MySiblingDefs.length + 1
       }`;
 
-      // Add this as the default field as it guarantees a valid selectionSet,
-      // then we'll strip it out in the printing phase
-      const firstFieldName = '__typename';
+      // Add this as the default field as it guarantees a valid selectionSet
+      const firstFieldName = '__typename # Placeholder value';
 
       const selectionSet = {
         kind: 'SelectionSet',
@@ -1731,7 +1715,7 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div style={{padding: 18, fontFamily: 'sans-serif'}}>
-          <div>Something went wrong</div>
+          <div>Something went w rong</div>
           <details style={{whiteSpace: 'pre-wrap'}}>
             {this.state.error ? this.state.error.toString() : null}
             <br />
