@@ -83,9 +83,9 @@ type State = {|
 
 type Selections = $ReadOnlyArray<SelectionNode>;
 
-const capitalize = string => {
+function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
-};
+}
 
 const graphiqlArrowOpen = (
   <svg width="12" height="9">
@@ -129,9 +129,9 @@ const checkboxEmpty = (
   </svg>
 );
 
-const Checkbox = props => {
+function Checkbox(props) {
   return props.checked ? checkboxChecked : checkboxEmpty;
-};
+}
 
 function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
   const fields = type.getFields();
@@ -1663,7 +1663,6 @@ class Explorer extends React.PureComponent<Props, State> {
                 getDefaultScalarArgValue={getDefaultScalarArgValue}
                 makeDefaultArg={makeDefaultArg}
                 onRunOperation={() => {
-                  console.log('Run operation: ', operationName);
                   if (!!this.props.onRunOperation) {
                     this.props.onRunOperation(operationName);
                   }
