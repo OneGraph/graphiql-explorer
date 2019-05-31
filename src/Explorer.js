@@ -1680,27 +1680,33 @@ class Explorer extends React.PureComponent<Props, State> {
           },
         )}
         <div className="variable-editor-title" style={explorerActionsStyle}>
-          <button
-            className={'toolbar-button'}
-            style={buttonStyle}
-            type="link"
-            onClick={() => addOperation('query')}>
-            + ADD NEW QUERY
-          </button>
-          <button
-            className={'toolbar-button'}
-            style={buttonStyle}
-            type="link"
-            onClick={() => addOperation('mutation')}>
-            + ADD NEW MUTATION
-          </button>
-          <button
-            className={'toolbar-button'}
-            style={buttonStyle}
-            type="link"
-            onClick={() => addOperation('subscription')}>
-            + ADD NEW SUBSCRIPTION
-          </button>
+          {!!queryFields ? (
+            <button
+              className={'toolbar-button'}
+              style={buttonStyle}
+              type="link"
+              onClick={() => addOperation('query')}>
+              + ADD NEW QUERY
+            </button>
+          ) : null}
+          {!!mutationFields ? (
+            <button
+              className={'toolbar-button'}
+              style={buttonStyle}
+              type="link"
+              onClick={() => addOperation('mutation')}>
+              + ADD NEW MUTATION
+            </button>
+          ) : null}
+          {!!subscriptionFields ? (
+            <button
+              className={'toolbar-button'}
+              style={buttonStyle}
+              type="link"
+              onClick={() => addOperation('subscription')}>
+              + ADD NEW SUBSCRIPTION
+            </button>
+          ) : null}
         </div>
       </div>
     );
