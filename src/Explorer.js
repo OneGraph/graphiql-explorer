@@ -87,26 +87,51 @@ function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const graphiqlArrowOpen = (
-  <svg width="12" height="9">
+const GraphiqlArrowOpen = ({onChange}) => (
+  <svg
+    width="12"
+    height="9"
+    tabIndex={0}
+    onClick={() => onChange(false)}
+    onKeyDown={event => {
+      if (event.key === ' ') {
+        onChange && onChange(false);
+      }
+    }}>
     <path fill="#666" d="M 0 2 L 9 2 L 4.5 7.5 z" />
   </svg>
 );
 
-const graphiqlArrowClosed = (
-  <svg width="12" height="9">
+const GraphiqlArrowClosed = ({onChange}) => (
+  <svg
+    width="12"
+    height="9"
+    tabIndex={0}
+    onClick={() => onChange(true)}
+    onKeyDown={event => {
+      if (event.key === ' ') {
+        onChange && onChange(true);
+      }
+    }}>
     <path fill="#666" d="M 0 0 L 0 9 L 5.5 4.5 z" />
   </svg>
 );
 
-const checkboxChecked = (
+const CheckboxChecked = ({onChange}) => (
   <svg
     style={{marginRight: '3px', marginLeft: '-3px'}}
     width="12"
     height="12"
     viewBox="0 0 18 18"
     fill="none"
-    xmlns="http://www.w3.org/2000/svg">
+    xmlns="http://www.w3.org/2000/svg"
+    tabIndex={0}
+    onClick={() => onChange(false)}
+    onKeyDown={event => {
+      if (event.key === ' ') {
+        onChange && onChange(false);
+      }
+    }}>
     <path
       d="M16 0H2C0.9 0 0 0.9 0 2V16C0 17.1 0.9 18 2 18H16C17.1 18 18 17.1 18 16V2C18 0.9 17.1 0 16 0ZM16 16H2V2H16V16ZM14.99 6L13.58 4.58L6.99 11.17L4.41 8.6L2.99 10.01L6.99 14L14.99 6Z"
       fill="#666"
@@ -114,14 +139,21 @@ const checkboxChecked = (
   </svg>
 );
 
-const checkboxEmpty = (
+const CheckboxEmpty = ({onChange}) => (
   <svg
     style={{marginRight: '3px', marginLeft: '-3px'}}
     width="12"
     height="12"
     viewBox="0 0 18 18"
     fill="none"
-    xmlns="http://www.w3.org/2000/svg">
+    xmlns="http://www.w3.org/2000/svg"
+    tabIndex={0}
+    onClick={() => onChange(false)}
+    onKeyDown={event => {
+      if (event.key === ' ') {
+        onChange && onChange(false);
+      }
+    }}>
     <path
       d="M16 2V16H2V2H16ZM16 0H2C0.9 0 0 0.9 0 2V16C0 17.1 0.9 18 2 18H16C17.1 18 18 17.1 18 16V2C18 0.9 17.1 0 16 0Z"
       fill="#CCC"
@@ -130,7 +162,19 @@ const checkboxEmpty = (
 );
 
 function Checkbox(props) {
-  return props.checked ? checkboxChecked : checkboxEmpty;
+  return props.checked ? (
+    <CheckboxChecked {...props} />
+  ) : (
+    <CheckboxEmpty {...props} />
+  );
+}
+
+function Arrow(props) {
+  return props.checked ? (
+    <GraphiqlArrowOpen {...props} />
+  ) : (
+    <GraphiqlArrowClosed {...props} />
+  );
 }
 
 function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
@@ -735,12 +779,21 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
+        onContextMenu={event => {
+          event.stopPropagation();
+          event.preventDefault();
+          console.log('Caught variable: ', arg);
+          return false;
+        }}
         data-arg-name={arg.name}
         data-arg-type={argType.name}>
         <span
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
-          <Checkbox checked={!!argValue} />
+          <Checkbox
+            checked={!!argValue}
+            onChange={argValue ? this.props.removeArg : this.props.addArg}
+          />
           <span title={arg.description} style={{color: '#8B2BB9'}}>
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
@@ -845,7 +898,10 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         <span
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
-          <Checkbox checked={!!selection} />
+          <Checkbox
+            checked={!!selection}
+            onChange={selection ? this._removeFragment : this._addFragment}
+          />
           <span style={{color: '#CA9800'}}>
             {this.props.implementingType.name}
           </span>
@@ -1132,9 +1188,19 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
           data-field-type={type.name}
           onClick={this._handleUpdateSelections}>
           {isObjectType(type) ? (
-            <span>{!!selection ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
+            <span>
+              <Arrow
+                checked={!!selection}
+                onChange={this._handleUpdateSelections}
+              />
+            </span>
           ) : null}
-          {isObjectType(type) ? null : <Checkbox checked={!!selection} />}
+          {isObjectType(type) ? null : (
+            <Checkbox
+              checked={!!selection}
+              onChange={this._handleUpdateSelections}
+            />
+          )}
           <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
         </span>
         {selection && args.length ? (
