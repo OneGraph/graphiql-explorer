@@ -67,6 +67,7 @@ type MakeDefaultArg = (
 type Props = {
   query: string,
   width?: number,
+  title?: string,
   schema?: ?GraphQLSchema,
   onEdit: string => void,
   getDefaultFieldNames?: ?(type: GraphQLObjectType) => Array<string>,
@@ -1745,6 +1746,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
   static defaultValue = defaultValue;
   static defaultProps = {
     width: 380,
+    title: 'Explorer',
   };
   render() {
     return (
@@ -1757,7 +1759,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           display: this.props.explorerIsOpen ? 'block' : 'none',
         }}>
         <div className="history-title-bar">
-          <div className="history-title">Explorer</div>
+          <div className="history-title">{this.props.title}</div>
           <div className="doc-explorer-rhs">
             <div
               className="docExplorerHide"
