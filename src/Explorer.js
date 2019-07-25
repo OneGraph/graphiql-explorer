@@ -24,6 +24,8 @@ import {
   isScalarType,
   isUnionType,
   isWrappingType,
+  buildClientSchema,
+  getIntrospectionQuery,
   parse,
   print,
 } from 'graphql';
@@ -68,6 +70,7 @@ type Props = {
   query: string,
   width?: number,
   title?: string,
+  fetcher?: any => Promise<{data: any}>,
   schema?: ?GraphQLSchema,
   onEdit: string => void,
   getDefaultFieldNames?: ?(type: GraphQLObjectType) => Array<string>,
@@ -1428,11 +1431,13 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
   }
 }
 
-class Explorer extends React.PureComponent<Props, State> {
+class Explorer extends React.PureComponent<Props, {schema: ?GraphQLSchema}> {
   static defaultProps = {
     getDefaultFieldNames: defaultGetDefaultFieldNames,
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
   };
+
+  state = {schema: this.props.schema};
 
   _ref: ?any;
   _resetScroll = () => {
@@ -1441,13 +1446,32 @@ class Explorer extends React.PureComponent<Props, State> {
       container.scrollLeft = 0;
     }
   };
+  _fetchSchema = () => {
+    const {fetcher} = this.props;
+
+    if (fetcher) {
+      fetcher({
+        query: getIntrospectionQuery()
+      }).then(result => {
+        if (this.state.schema !== undefined) {
+          return;
+        }
+
+        this.setState({ schema: buildClientSchema(result.data) });
+      });
+    }
+  }
   componentDidMount() {
+    if (this.state.schema === undefined) {
+      this._fetchSchema();
+    }
     this._resetScroll();
   }
   _onEdit = (query: string): void => this.props.onEdit(query);
 
   render() {
-    const {schema, query, makeDefaultArg} = this.props;
+    const {query, makeDefaultArg} = this.props;
+    const {schema} = this.state;
 
     if (!schema) {
       return (
