@@ -740,7 +740,9 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         <span
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
-          <Checkbox checked={!!argValue} />
+          {isInputObjectType(argType) ? (
+            <span>{!!argValue ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
+          ) : <Checkbox checked={!!argValue} />}
           <span title={arg.description} style={{color: '#8B2BB9'}}>
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
