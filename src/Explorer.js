@@ -699,7 +699,14 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         if (argValue.kind === 'ObjectValue') {
           const fields = argType.getFields();
           input = (
-            <div style={{marginLeft: 16}}>
+            <ul
+              style={{
+                margin: '0em',
+                marginLeft: '16px',
+                padding: '0em',
+                listStyle: 'none',
+              }}
+              aria-label={`Fields for ${arg.name}`}>
               {Object.keys(fields)
                 .sort()
                 .map(fieldName => (
@@ -716,7 +723,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
                     onRunOperation={this.props.onRunOperation}
                   />
                 ))}
-            </div>
+            </ul>
           );
         } else {
           console.error(
@@ -729,7 +736,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     }
 
     return (
-      <div
+      <li
         style={{
           cursor: 'pointer',
           minHeight: '16px',
@@ -738,9 +745,17 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         }}
         data-arg-name={arg.name}
         data-arg-type={argType.name}>
-        <span
-          style={{cursor: 'pointer'}}
-          onClick={argValue ? this.props.removeArg : this.props.addArg}>
+        <button
+          style={{
+            cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            padding: '0px',
+          }}
+          onClick={argValue ? this.props.removeArg : this.props.addArg}
+          role={isInputObjectType(argType) ? null : "checkbox"}
+          aria-expanded={isInputObjectType(argType) ? !!argValue ? "true" : "false" : null}
+          aria-checked={isInputObjectType(argType) ? null : !!argValue ? "true" : "false"}>
           {isInputObjectType(argType) ? (
             <span>{!!argValue ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
           ) : <Checkbox checked={!!argValue} />}
@@ -748,9 +763,9 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
           </span>
-        </span>{' '}
+        </button>{' '}
         {input || <span />}
-      </div>
+      </li>
     );
   }
 }
@@ -1119,9 +1134,70 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
-    const node = (
-      <div className="graphiql-explorer-node">
-        <span
+
+    let children = null;
+
+    if (
+      selection &&
+      (isObjectType(type) || isInterfaceType(type) || isUnionType(type))
+    ) {
+      const fields = isUnionType(type) ? {} : type.getFields();
+      const childSelections = selection
+        ? selection.selectionSet
+          ? selection.selectionSet.selections
+          : []
+        : [];
+
+      children = (
+        <ul
+          style={{
+            margin: '0em',
+            marginLeft: '16px',
+            padding: '0em',
+            listStyle: 'none',
+          }}
+          aria-label={`Fields for ${field.name}`}>
+          {Object.keys(fields)
+            .sort()
+            .map(fieldName => (
+              <FieldView
+                key={fieldName}
+                field={fields[fieldName]}
+                selections={childSelections}
+                modifySelections={this._modifyChildSelections}
+                schema={schema}
+                getDefaultFieldNames={getDefaultFieldNames}
+                getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                makeDefaultArg={this.props.makeDefaultArg}
+                onRunOperation={this.props.onRunOperation}
+              />
+            ))}
+          {isInterfaceType(type) || isUnionType(type)
+            ? schema
+                .getPossibleTypes(type)
+                .map(type => (
+                  <AbstractView
+                    key={type.name}
+                    implementingType={type}
+                    selections={childSelections}
+                    modifySelections={this._modifyChildSelections}
+                    schema={schema}
+                    getDefaultFieldNames={getDefaultFieldNames}
+                    getDefaultScalarArgValue={
+                      this.props.getDefaultScalarArgValue
+                    }
+                    makeDefaultArg={this.props.makeDefaultArg}
+                    onRunOperation={this.props.onRunOperation}
+                  />
+                ))
+            : null}
+        </ul>
+      );
+    }
+
+    return (
+      <li className="graphiql-explorer-node">
+        <button
           title={field.description}
           style={{
             cursor: 'pointer',
@@ -1130,18 +1206,29 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
             minHeight: '16px',
             WebkitUserSelect: 'none',
             userSelect: 'none',
+            background: 'none',
+            border: 'none',
+            padding: '0px',
           }}
           data-field-name={field.name}
           data-field-type={type.name}
-          onClick={this._handleUpdateSelections}>
+          onClick={this._handleUpdateSelections}
+          aria-expanded={isObjectType(type) ? !!selection ? "true" : "false" : null}>
           {isObjectType(type) ? (
             <span>{!!selection ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
           ) : null}
           {isObjectType(type) ? null : <Checkbox checked={!!selection} />}
           <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
-        </span>
+        </button>
         {selection && args.length ? (
-          <div style={{marginLeft: 16}}>
+          <ul
+            style={{
+              margin: '0em',
+              marginLeft: '16px',
+              padding: '0em',
+              listStyle: 'none',
+            }}
+            aria-label={`Variables for ${field.name}`}>
             {args.map(arg => (
               <ArgView
                 key={arg.name}
@@ -1154,64 +1241,11 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                 onRunOperation={this.props.onRunOperation}
               />
             ))}
-          </div>
+          </ul>
         ) : null}
-      </div>
+        {children}
+      </li>
     );
-
-    if (
-      selection &&
-      (isObjectType(type) || isInterfaceType(type) || isUnionType(type))
-    ) {
-      const fields = isUnionType(type) ? {} : type.getFields();
-      const childSelections = selection
-        ? selection.selectionSet
-          ? selection.selectionSet.selections
-          : []
-        : [];
-      return (
-        <div>
-          {node}
-          <div style={{marginLeft: 16}}>
-            {Object.keys(fields)
-              .sort()
-              .map(fieldName => (
-                <FieldView
-                  key={fieldName}
-                  field={fields[fieldName]}
-                  selections={childSelections}
-                  modifySelections={this._modifyChildSelections}
-                  schema={schema}
-                  getDefaultFieldNames={getDefaultFieldNames}
-                  getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-                  makeDefaultArg={this.props.makeDefaultArg}
-                  onRunOperation={this.props.onRunOperation}
-                />
-              ))}
-            {isInterfaceType(type) || isUnionType(type)
-              ? schema
-                  .getPossibleTypes(type)
-                  .map(type => (
-                    <AbstractView
-                      key={type.name}
-                      implementingType={type}
-                      selections={childSelections}
-                      modifySelections={this._modifyChildSelections}
-                      schema={schema}
-                      getDefaultFieldNames={getDefaultFieldNames}
-                      getDefaultScalarArgValue={
-                        this.props.getDefaultScalarArgValue
-                      }
-                      makeDefaultArg={this.props.makeDefaultArg}
-                      onRunOperation={this.props.onRunOperation}
-                    />
-                  ))
-              : null}
-          </div>
-        </div>
-      );
-    }
-    return node;
   }
 }
 
@@ -1373,15 +1407,15 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
       this.props.name || `${capitalize(operation)} Name`;
 
     return (
-      <div
+      <section
         id={`${operation}-${name || 'unknown'}`}
         style={{
           borderBottom: '1px solid #d6d6d6',
-          marginBottom: '0em',
           paddingBottom: '1em',
-        }}>
+        }}
+        aria-label={`${operation} ${name}`}>
         <div style={{color: '#B11A04', paddingBottom: 4}}>
-          {operation}{' '}
+          <span aria-hidden="true">{operation}</span>{' '}
           <span style={{color: 'rgb(193, 42,80)'}}>
             <input
               style={{
@@ -1393,6 +1427,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               }}
               autoComplete="false"
               placeholder={`${capitalize(operation)} Name`}
+              aria-label={`${capitalize(operation)} Name`}
               value={this.props.name}
               onKeyDown={this._handlePotentialRun}
               onChange={this._onOperationRename}
@@ -1408,22 +1443,30 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           )}
         </div>
 
-        {Object.keys(fields || {})
-          .sort()
-          .map(fieldName => (
-            <FieldView
-              key={fieldName}
-              field={fields[fieldName]}
-              selections={selections}
-              modifySelections={this._modifySelections}
-              schema={schema}
-              getDefaultFieldNames={getDefaultFieldNames}
-              getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-              makeDefaultArg={this.props.makeDefaultArg}
-              onRunOperation={this.props.onRunOperation}
-            />
-          ))}
-      </div>
+        <ul
+          style={{
+            margin: '0em',
+            padding: '0em',
+            listStyle: 'none',
+          }}
+          aria-label={`Fields for ${name}`}>
+          {Object.keys(fields || {})
+            .sort()
+            .map(fieldName => (
+              <FieldView
+                key={fieldName}
+                field={fields[fieldName]}
+                selections={selections}
+                modifySelections={this._modifySelections}
+                schema={schema}
+                getDefaultFieldNames={getDefaultFieldNames}
+                getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                makeDefaultArg={this.props.makeDefaultArg}
+                onRunOperation={this.props.onRunOperation}
+              />
+            ))}
+        </ul>
+      </section>
     );
   }
 }
@@ -1600,7 +1643,7 @@ class Explorer extends React.PureComponent<Props, State> {
           fontFamily:
             'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace',
         }}
-        className="graphiql-explorer-root">
+        className="grapihql-explorer-root">
         {relevantOperations.map(
           (
             operation: OperationDefinitionNode | FragmentDefinitionNode,
@@ -1760,21 +1803,29 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           zIndex: 7,
           display: this.props.explorerIsOpen ? 'block' : 'none',
         }}>
-        <div className="history-title-bar">
-          <div className="history-title">{this.props.title}</div>
-          <div className="doc-explorer-rhs">
-            <div
-              className="docExplorerHide"
-              onClick={this.props.onToggleExplorer}>
-              {'\u2715'}
+        <section aria-label="Explorer">
+          <div className="history-title-bar">
+            <div className="history-title">{this.props.title}</div>
+            <div className="doc-explorer-rhs">
+              <button
+                className="docExplorerHide"
+                onClick={this.props.onToggleExplorer}
+                aria-label="Close Explorer"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  lineHeight: '14px',
+                }}>
+                {'\u2715'}
+              </button>
             </div>
           </div>
-        </div>
-        <div className="history-contents">
-          <ErrorBoundary>
-            <Explorer {...this.props} />
-          </ErrorBoundary>
-        </div>
+          <div className="history-contents">
+            <ErrorBoundary>
+              <Explorer {...this.props} />
+            </ErrorBoundary>
+          </div>
+        </section>
       </div>
     );
   }
