@@ -9,7 +9,7 @@
 
 // Note: Attempted 1. and 2., but they were more annoying than helpful
 
-import React from 'react';
+import * as React from 'react';
 
 import {
   getNamedType,
@@ -30,6 +30,7 @@ import {
 
 import type {
   ArgumentNode,
+  ASTNode,
   DocumentNode,
   FieldNode,
   GraphQLArgument,
@@ -64,6 +65,38 @@ type MakeDefaultArg = (
   arg: GraphQLArgument | GraphQLInputField,
 ) => boolean;
 
+type Colors = {
+  keyword: string,
+  def: string,
+  property: string,
+  qualifier: string,
+  attribute: string,
+  number: string,
+  string: string,
+  builtin: string,
+  string2: string,
+  variable: string,
+  atom: string,
+};
+
+type StyleMap = {
+  [key: string]: any,
+};
+
+type Styles = {
+  explorerActionsStyle: StyleMap,
+  buttonStyle: StyleMap,
+};
+
+type StyleConfig = {
+  colors: Colors,
+  arrowOpen: React.Node,
+  arrowClosed: React.Node,
+  checkboxChecked: React.Node,
+  checkboxUnchecked: React.Node,
+  styles: Styles,
+};
+
 type Props = {
   query: string,
   width?: number,
@@ -76,6 +109,15 @@ type Props = {
   onToggleExplorer: () => void,
   explorerIsOpen: boolean,
   onRunOperation?: (name: ?string) => void,
+  colors?: ?Colors,
+  arrowOpen?: ?React.Node,
+  arrowClosed?: ?React.Node,
+  checkboxChecked?: ?React.Node,
+  checkboxUnchecked?: ?React.Node,
+  styles?: ?{
+    explorerActionsStyle?: StyleMap,
+    buttonStyle?: StyleMap,
+  },
 };
 
 type State = {|
@@ -88,19 +130,42 @@ function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const graphiqlArrowOpen = (
+// Names match class names in graphiql app.css
+// https://github.com/graphql/graphiql/blob/master/packages/graphiql/css/app.css
+const defaultColors: Colors = {
+  keyword: '#B11A04',
+  // OperationName, FragmentName
+  def: '#D2054E',
+  // FieldName
+  property: '#1F61A0',
+  // FieldAlias
+  qualifier: '#1C92A9',
+  // ArgumentName and ObjectFieldName
+  attribute: '#8B2BB9',
+  number: '#2882F9',
+  string: '#D64292',
+  // Boolean
+  builtin: '#D47509',
+  // Enum
+  string2: '#0B7FC7',
+  variable: '#397D13',
+  // Type
+  atom: '#CA9800',
+};
+
+const defaultArrowOpen = (
   <svg width="12" height="9">
     <path fill="#666" d="M 0 2 L 9 2 L 4.5 7.5 z" />
   </svg>
 );
 
-const graphiqlArrowClosed = (
+const defaultArrowClosed = (
   <svg width="12" height="9">
     <path fill="#666" d="M 0 0 L 0 9 L 5.5 4.5 z" />
   </svg>
 );
 
-const checkboxChecked = (
+const defaultCheckboxChecked = (
   <svg
     style={{marginRight: '3px', marginLeft: '-3px'}}
     width="12"
@@ -115,7 +180,7 @@ const checkboxChecked = (
   </svg>
 );
 
-const checkboxEmpty = (
+const defaultCheckboxUnchecked = (
   <svg
     style={{marginRight: '3px', marginLeft: '-3px'}}
     width="12"
@@ -130,8 +195,10 @@ const checkboxEmpty = (
   </svg>
 );
 
-function Checkbox(props) {
-  return props.checked ? checkboxChecked : checkboxEmpty;
+function Checkbox(props: {checked: boolean, styleConfig: StyleConfig}) {
+  return props.checked
+    ? props.styleConfig.checkboxChecked
+    : props.styleConfig.checkboxUnchecked;
 }
 
 function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
@@ -169,6 +236,11 @@ function defaultGetDefaultFieldNames(type: GraphQLObjectType): Array<string> {
       leafFieldNames.push(fieldName);
     }
   });
+
+  if (!leafFieldNames.length) {
+    // No leaf fields, add typename so that the query stays valid
+    return ['__typename'];
+  }
   return leafFieldNames.slice(0, 2); // Prevent too many fields from being added
 }
 
@@ -260,6 +332,7 @@ type InputArgViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
@@ -380,6 +453,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
+        styleConfig={this.props.styleConfig}
       />
     );
   }
@@ -393,6 +467,7 @@ type ArgViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 type ArgViewState = {||};
@@ -554,6 +629,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
+        styleConfig={this.props.styleConfig}
       />
     );
   }
@@ -574,6 +650,7 @@ type AbstractArgViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 type ScalarInputProps = {|
@@ -581,6 +658,7 @@ type ScalarInputProps = {|
   argValue: ValueNode,
   setArgValue: (event: SyntheticInputEvent<*>) => void,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
@@ -603,11 +681,13 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
   }
 
   render() {
-    const {arg, argValue} = this.props;
+    const {arg, argValue, styleConfig} = this.props;
     const argType = unwrapInputType(arg.type);
-    const color =
-      this.props.argValue.kind === 'StringValue' ? '#D64292' : '#2882F9';
     const value = typeof argValue.value === 'string' ? argValue.value : '';
+    const color =
+      this.props.argValue.kind === 'StringValue'
+        ? styleConfig.colors.string
+        : styleConfig.colors.number;
     return (
       <span style={{color}}>
         {argType.name === 'String' ? '"' : ''}
@@ -616,8 +696,8 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
             border: 'none',
             borderBottom: '1px solid #888',
             outline: 'none',
-            color,
             width: `${Math.max(1, value.length)}ch`,
+            color,
           }}
           ref={ref => {
             this._ref = ref;
@@ -639,19 +719,25 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
 
 class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
   render() {
-    const {argValue, arg} = this.props;
+    const {argValue, arg, styleConfig} = this.props;
     /* TODO: handle List types*/
     const argType = unwrapInputType(arg.type);
 
     let input = null;
     if (argValue) {
       if (argValue.kind === 'Variable') {
-        input = <span style={{color: '#397D13'}}>${argValue.name.value}</span>;
+        input = (
+          <span style={{color: styleConfig.colors.variable}}>
+            ${argValue.name.value}
+          </span>
+        );
       } else if (isScalarType(argType)) {
         if (argType.name === 'Boolean') {
           input = (
             <select
-              style={{backgroundColor: 'white', color: '#D47509'}}
+              style={{
+                color: styleConfig.colors.builtin,
+              }}
               onChange={this.props.setArgValue}
               value={
                 argValue.kind === 'BooleanValue' ? argValue.value : undefined
@@ -671,6 +757,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
               arg={arg}
               argValue={argValue}
               onRunOperation={this.props.onRunOperation}
+              styleConfig={this.props.styleConfig}
             />
           );
         }
@@ -678,7 +765,10 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         if (argValue.kind === 'EnumValue') {
           input = (
             <select
-              style={{backgroundColor: 'white', color: '#0B7FC7'}}
+              style={{
+                backgroundColor: 'white',
+                color: styleConfig.colors.string2,
+              }}
               onChange={this.props.setArgValue}
               value={argValue.value}>
               {argType.getValues().map(value => (
@@ -714,6 +804,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
                     }
                     makeDefaultArg={this.props.makeDefaultArg}
                     onRunOperation={this.props.onRunOperation}
+                    styleConfig={this.props.styleConfig}
                   />
                 ))}
             </div>
@@ -742,9 +833,20 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
           {isInputObjectType(argType) ? (
-            <span>{!!argValue ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
-          ) : <Checkbox checked={!!argValue} />}
-          <span title={arg.description} style={{color: '#8B2BB9'}}>
+            <span>
+              {!!argValue
+                ? this.props.styleConfig.arrowOpen
+                : this.props.styleConfig.arrowClosed}
+            </span>
+          ) : (
+            <Checkbox
+              checked={!!argValue}
+              styleConfig={this.props.styleConfig}
+            />
+          )}
+          <span
+            style={{color: styleConfig.colors.attribute}}
+            title={arg.description}>
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
           </span>
@@ -764,6 +866,7 @@ type AbstractViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
@@ -835,7 +938,12 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   };
 
   render() {
-    const {implementingType, schema, getDefaultFieldNames} = this.props;
+    const {
+      implementingType,
+      schema,
+      getDefaultFieldNames,
+      styleConfig,
+    } = this.props;
     const selection = this._getSelection();
     const fields = implementingType.getFields();
     const childSelections = selection
@@ -848,8 +956,11 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         <span
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
-          <Checkbox checked={!!selection} />
-          <span style={{color: '#CA9800'}}>
+          <Checkbox
+            checked={!!selection}
+            styleConfig={this.props.styleConfig}
+          />
+          <span style={{color: styleConfig.colors.atom}}>
             {this.props.implementingType.name}
           </span>
         </span>
@@ -868,6 +979,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
+                  styleConfig={this.props.styleConfig}
                 />
               ))}
           </div>
@@ -886,6 +998,7 @@ type FieldViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  styleConfig: StyleConfig,
 |};
 
 function defaultInputObjectFields(
@@ -1115,7 +1228,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
   };
 
   render() {
-    const {field, schema, getDefaultFieldNames} = this.props;
+    const {field, schema, getDefaultFieldNames, styleConfig} = this.props;
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
@@ -1135,10 +1248,19 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
           data-field-type={type.name}
           onClick={this._handleUpdateSelections}>
           {isObjectType(type) ? (
-            <span>{!!selection ? graphiqlArrowOpen : graphiqlArrowClosed}</span>
+            <span>
+              {!!selection
+                ? this.props.styleConfig.arrowOpen
+                : this.props.styleConfig.arrowClosed}
+            </span>
           ) : null}
-          {isObjectType(type) ? null : <Checkbox checked={!!selection} />}
-          <span style={{color: 'rgb(31, 97, 160)'}}>{field.name}</span>
+          {isObjectType(type) ? null : (
+            <Checkbox
+              checked={!!selection}
+              styleConfig={this.props.styleConfig}
+            />
+          )}
+          <span style={{color: styleConfig.colors.property}}>{field.name}</span>
         </span>
         {selection && args.length ? (
           <div style={{marginLeft: 16}}>
@@ -1152,6 +1274,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                 getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                 makeDefaultArg={this.props.makeDefaultArg}
                 onRunOperation={this.props.onRunOperation}
+                styleConfig={this.props.styleConfig}
               />
             ))}
           </div>
@@ -1186,6 +1309,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
+                  styleConfig={this.props.styleConfig}
                 />
               ))}
             {isInterfaceType(type) || isUnionType(type)
@@ -1204,6 +1328,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                       }
                       makeDefaultArg={this.props.makeDefaultArg}
                       onRunOperation={this.props.onRunOperation}
+                      styleConfig={this.props.styleConfig}
                     />
                   ))
               : null}
@@ -1268,27 +1393,29 @@ function memoizeParseQuery(query: string): DocumentNode {
   }
 }
 
-const buttonStyle = {
-  fontSize: '1.2em',
-  padding: '0px',
-  backgroundColor: 'white',
-  border: 'none',
-  margin: '5px 0px',
-  height: '40px',
-  width: '100%',
-  display: 'block',
-  maxWidth: 'none',
-};
+const defaultStyles = {
+  buttonStyle: {
+    fontSize: '1.2em',
+    padding: '0px',
+    backgroundColor: 'white',
+    border: 'none',
+    margin: '5px 0px',
+    height: '40px',
+    width: '100%',
+    display: 'block',
+    maxWidth: 'none',
+  },
 
-const explorerActionsStyle = {
-  margin: '4px -8px -8px',
-  paddingLeft: '8px',
-  bottom: '0px',
-  width: '100%',
-  textAlign: 'center',
-  background: 'none',
-  borderTop: 'none',
-  borderBottom: 'none',
+  explorerActionsStyle: {
+    margin: '4px -8px -8px',
+    paddingLeft: '8px',
+    bottom: '0px',
+    width: '100%',
+    textAlign: 'center',
+    background: 'none',
+    borderTop: 'none',
+    borderBottom: 'none',
+  },
 };
 
 type RootViewProps = {|
@@ -1306,6 +1433,7 @@ type RootViewProps = {|
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
+  styleConfig: StyleConfig,
 |};
 
 class RootView extends React.PureComponent<RootViewProps, {}> {
@@ -1359,13 +1487,14 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
 
   render() {
     const {
-      fields,
       operation,
       name,
       definition,
       schema,
       getDefaultFieldNames,
+      styleConfig,
     } = this.props;
+    const fields = this.props.fields || {};
     const operationDef = definition;
     const selections = operationDef.selectionSet.selections;
 
@@ -1380,15 +1509,15 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           marginBottom: '0em',
           paddingBottom: '1em',
         }}>
-        <div style={{color: '#B11A04', paddingBottom: 4}}>
+        <div style={{color: styleConfig.colors.keyword, paddingBottom: 4}}>
           {operation}{' '}
-          <span style={{color: 'rgb(193, 42,80)'}}>
+          <span style={{color: styleConfig.colors.def}}>
             <input
               style={{
+                color: styleConfig.colors.def,
                 border: 'none',
                 borderBottom: '1px solid #888',
                 outline: 'none',
-                color: 'rgb(193, 42,80)',
                 width: `${Math.max(4, operationDisplayName.length)}ch`,
               }}
               autoComplete="false"
@@ -1408,9 +1537,9 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           )}
         </div>
 
-        {Object.keys(fields || {})
+        {Object.keys(fields)
           .sort()
-          .map(fieldName => (
+          .map((fieldName: string) => (
             <FieldView
               key={fieldName}
               field={fields[fieldName]}
@@ -1421,6 +1550,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
+              styleConfig={this.props.styleConfig}
             />
           ))}
       </div>
@@ -1456,6 +1586,20 @@ class Explorer extends React.PureComponent<Props, State> {
         </div>
       );
     }
+    const styleConfig = {
+      colors: this.props.colors || defaultColors,
+      checkboxChecked: this.props.checkboxChecked || defaultCheckboxChecked,
+      checkboxUnchecked:
+        this.props.checkboxUnchecked || defaultCheckboxUnchecked,
+      arrowClosed: this.props.arrowClosed || defaultArrowClosed,
+      arrowOpen: this.props.arrowOpen || defaultArrowOpen,
+      styles: this.props.styles
+        ? {
+            ...defaultStyles,
+            ...this.props.styles,
+          }
+        : defaultStyles,
+    };
     const queryType = schema.getQueryType();
     const mutationType = schema.getMutationType();
     const subscriptionType = schema.getSubscriptionType();
@@ -1678,15 +1822,18 @@ class Explorer extends React.PureComponent<Props, State> {
                     this.props.onRunOperation(operationName);
                   }
                 }}
+                styleConfig={styleConfig}
               />
             );
           },
         )}
-        <div className="variable-editor-title" style={explorerActionsStyle}>
+        <div
+          className="variable-editor-title"
+          style={styleConfig.styles.explorerActionsStyle}>
           {!!queryFields ? (
             <button
               className={'toolbar-button'}
-              style={buttonStyle}
+              style={styleConfig.styles.buttonStyle}
               type="link"
               onClick={() => addOperation('query')}>
               + ADD NEW QUERY
@@ -1695,7 +1842,7 @@ class Explorer extends React.PureComponent<Props, State> {
           {!!mutationFields ? (
             <button
               className={'toolbar-button'}
-              style={buttonStyle}
+              style={styleConfig.styles.buttonStyle}
               type="link"
               onClick={() => addOperation('mutation')}>
               + ADD NEW MUTATION
@@ -1704,7 +1851,7 @@ class Explorer extends React.PureComponent<Props, State> {
           {!!subscriptionFields ? (
             <button
               className={'toolbar-button'}
-              style={buttonStyle}
+              style={styleConfig.styles.buttonStyle}
               type="link"
               onClick={() => addOperation('subscription')}>
               + ADD NEW SUBSCRIPTION
