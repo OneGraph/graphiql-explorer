@@ -1,6 +1,6 @@
 {
   "name": "graphiql-explorer",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "homepage": "https://github.com/onegraph/graphiql-explorer",
   "bugs": {
     "url": "https://github.com/onegraph/graphiql-explorer/issues"
@@ -78,6 +78,6 @@
     "check": "flow check",
     "prepublish": ". ./resources/prepublish.sh",
     "preversion": ". ./resources/checkgit.sh && npm test",
-    "test": "npm run lint && npm run check && npm run build"
+    "test": "npm run check && npm run build"
   }
 }
