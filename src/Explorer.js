@@ -154,20 +154,20 @@ const defaultColors: Colors = {
 };
 
 const defaultArrowOpen = (
-  <svg width="12" height="9">
+  <svg width="12" height="9" style={{marginLeft: '3px'}}>
     <path fill="#666" d="M 0 2 L 9 2 L 4.5 7.5 z" />
   </svg>
 );
 
 const defaultArrowClosed = (
-  <svg width="12" height="9">
+  <svg width="12" height="9" style={{marginLeft: '3px'}}>
     <path fill="#666" d="M 0 0 L 0 9 L 5.5 4.5 z" />
   </svg>
 );
 
 const defaultCheckboxChecked = (
   <svg
-    style={{marginRight: '3px', marginLeft: '-3px'}}
+    style={{marginRight: '3px'}}
     width="12"
     height="12"
     viewBox="0 0 18 18"
@@ -182,7 +182,7 @@ const defaultCheckboxChecked = (
 
 const defaultCheckboxUnchecked = (
   <svg
-    style={{marginRight: '3px', marginLeft: '-3px'}}
+    style={{marginRight: '3px'}}
     width="12"
     height="12"
     viewBox="0 0 18 18"
