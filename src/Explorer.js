@@ -1787,7 +1787,7 @@ class Explorer extends React.PureComponent<Props, State> {
           fontFamily:
             'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace',
         }}
-        className="grapihql-explorer-root">
+        className="graphiql-explorer-root">
         {relevantOperations.map(
           (
             operation: OperationDefinitionNode | FragmentDefinitionNode,
