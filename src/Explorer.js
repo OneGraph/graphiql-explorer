@@ -1321,7 +1321,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
   componentDidUpdate() {
       if (this.props.searchTerm.length && this.state.lastSearch !== this.props.searchTerm) {
           this.setState(
-              {...this.state, lastSearch: this.props.searchTerm},
+              {...this.state, lastSearch: this.props.searchTerm, childMatches: this.state.childMatches.filter(([field, parents]) => field.name.includes(this.props.searchTerm))},
               () => {
                   childFieldsMatchingSearchTerm(this.props.field, this.props.searchTerm, (x)=>this.setState({...this.state, childMatches: x}), () => this.state.lastSearch);
               });
