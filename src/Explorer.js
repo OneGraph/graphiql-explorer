@@ -118,6 +118,7 @@ type Props = {
     explorerActionsStyle?: StyleMap,
     buttonStyle?: StyleMap,
   },
+  showAttribution: boolean,
 };
 
 type State = {|
@@ -1558,6 +1559,36 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
   }
 }
 
+function Attribution() {
+  return (
+    <div
+      style={{
+        fontFamily: 'sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        margin: '1em',
+        marginTop: 0,
+        flexGrow: 1,
+        justifyContent: 'flex-end',
+      }}>
+      <div
+        style={{
+          borderTop: '1px solid #d6d6d6',
+          paddingTop: '1em',
+          width: '100%',
+          textAlign: 'center',
+        }}>
+        GraphiQL Explorer by <a href="https://www.onegraph.com">OneGraph</a>
+      </div>
+      <div>
+        Contribute on{' '}
+        <a href="https://github.com/OneGraph/graphiql-explorer">GitHub</a>
+      </div>
+    </div>
+  );
+}
+
 class Explorer extends React.PureComponent<Props, State> {
   static defaultProps = {
     getDefaultFieldNames: defaultGetDefaultFieldNames,
@@ -1736,7 +1767,6 @@ class Explorer extends React.PureComponent<Props, State> {
         }}
         style={{
           fontSize: 12,
-          overflow: 'scroll',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           margin: 0,
@@ -1897,7 +1927,9 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
     width: 380,
     title: 'Explorer',
   };
+
   render() {
+    const attribution = this.props.showAttribution ? <Attribution /> : null;
     return (
       <div
         className="historyPaneWrap"
@@ -1918,9 +1950,19 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           </div>
         </div>
         <div className="history-contents">
-          <ErrorBoundary>
-            <Explorer {...this.props} />
-          </ErrorBoundary>
+          <div
+            style={{
+              overflow: 'scroll',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100%',
+            }}>
+            <ErrorBoundary>
+              <Explorer {...this.props} />
+            </ErrorBoundary>
+            {attribution}
+          </div>
         </div>
       </div>
     );
