@@ -1408,7 +1408,7 @@ const defaultStyles = {
   },
 
   explorerActionsStyle: {
-    margin: '4px -8px -8px',
+    margin: '-8px -8px auto -8px',
     paddingLeft: '8px',
     bottom: '0px',
     width: '100%',
@@ -1506,8 +1506,9 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
       <div
         id={`${operation}-${name || 'unknown'}`}
         style={{
-          borderBottom: '1px solid #d6d6d6',
-          marginBottom: '0em',
+          borderTop: '1px solid #d6d6d6',
+          marginTop: '0em',
+          paddingTop: '1em',
           paddingBottom: '1em',
         }}>
         <div style={{color: styleConfig.colors.keyword, paddingBottom: 4}}>
@@ -1750,7 +1751,7 @@ class Explorer extends React.PureComponent<Props, State> {
         // just replace it with our new definition
         viewingDefaultOperation
           ? [newDefinition]
-          : [...parsedQuery.definitions, newDefinition];
+          : [newDefinition, ...parsedQuery.definitions];
 
       const newOperationDef = {
         ...parsedQuery,
@@ -1775,6 +1776,37 @@ class Explorer extends React.PureComponent<Props, State> {
             'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace',
         }}
         className="graphiql-explorer-root">
+        <div
+          className="variable-editor-title"
+          style={styleConfig.styles.explorerActionsStyle}>
+          {!!queryFields ? (
+            <button
+              className={'toolbar-button'}
+              style={styleConfig.styles.buttonStyle}
+              type="link"
+              onClick={() => addOperation('query')}>
+              + ADD NEW QUERY
+            </button>
+          ) : null}
+          {!!mutationFields ? (
+            <button
+              className={'toolbar-button'}
+              style={styleConfig.styles.buttonStyle}
+              type="link"
+              onClick={() => addOperation('mutation')}>
+              + ADD NEW MUTATION
+            </button>
+          ) : null}
+          {!!subscriptionFields ? (
+            <button
+              className={'toolbar-button'}
+              style={styleConfig.styles.buttonStyle}
+              type="link"
+              onClick={() => addOperation('subscription')}>
+              + ADD NEW SUBSCRIPTION
+            </button>
+          ) : null}
+        </div>
         {relevantOperations.map(
           (
             operation: OperationDefinitionNode | FragmentDefinitionNode,
@@ -1857,37 +1889,6 @@ class Explorer extends React.PureComponent<Props, State> {
             );
           },
         )}
-        <div
-          className="variable-editor-title"
-          style={styleConfig.styles.explorerActionsStyle}>
-          {!!queryFields ? (
-            <button
-              className={'toolbar-button'}
-              style={styleConfig.styles.buttonStyle}
-              type="link"
-              onClick={() => addOperation('query')}>
-              + ADD NEW QUERY
-            </button>
-          ) : null}
-          {!!mutationFields ? (
-            <button
-              className={'toolbar-button'}
-              style={styleConfig.styles.buttonStyle}
-              type="link"
-              onClick={() => addOperation('mutation')}>
-              + ADD NEW MUTATION
-            </button>
-          ) : null}
-          {!!subscriptionFields ? (
-            <button
-              className={'toolbar-button'}
-              style={styleConfig.styles.buttonStyle}
-              type="link"
-              onClick={() => addOperation('subscription')}>
-              + ADD NEW SUBSCRIPTION
-            </button>
-          ) : null}
-        </div>
       </div>
     );
   }
