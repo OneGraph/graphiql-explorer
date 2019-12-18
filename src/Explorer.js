@@ -990,6 +990,82 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   }
 }
 
+function unvisitedChildFieldEntries(parentFields, field, visited) {
+  const type = unwrapOutputType(field.type);
+  if (isObjectType(type) || isInterfaceType(type)) {
+    return Object.values(type.getFields())
+                 .filter(childField => !visited.has(childField))
+                 .map(childField => [childField, parentFields.concat([field])]);
+  } else {
+    return [];
+  }
+};
+
+function searchOneGeneration(generationEntries, searchTerm, visited) {
+  let grandChildFieldEntries = [];
+  let matches = [];
+
+  for (const [field, parentFields] of generationEntries) {
+    visited.add(field);
+    if (field.name.includes(searchTerm)) {
+      matches.push([field, parentFields]);
+    } else {
+      grandChildFieldEntries.push(...unvisitedChildFieldEntries(parentFields, field, visited));
+    }
+  }
+
+  return [matches, grandChildFieldEntries];
+};
+
+function searchOneGenerationAsync(generationEntries, searchTerm, visited, matches, grandChildFieldEntries, getLastSearch, callback) {
+  if (!generationEntries.length) {
+    callback([matches, grandChildFieldEntries]);
+    return;
+  }
+
+  const [field, parentFields] = generationEntries.pop();
+  visited.add(field);
+  if (field.name.includes(searchTerm)) {
+    matches.push([field, parentFields]);
+  } else {
+    grandChildFieldEntries.push(...unvisitedChildFieldEntries(parentFields, field, visited));
+  }
+
+  if (getLastSearch() !== searchTerm) {
+    return;
+  }
+
+  setTimeout(() => searchOneGenerationAsync(generationEntries, searchTerm, visited, matches, grandChildFieldEntries, getLastSearch, callback, 0));
+};
+
+function searchRemainingGenerationsAsync(generationEntries, searchTerm, visited, callback, getLastSearch, depth) {
+  if (!generationEntries.length) {
+    callback([]);
+    return;
+  }
+
+  searchOneGenerationAsync(
+    generationEntries, searchTerm, visited, [], [], getLastSearch,
+    ([matches, nextGenEntries]) => {
+      if (getLastSearch() !== searchTerm) {
+        return;
+      }
+
+      if (matches.length) {
+        callback(matches);
+      } else {
+        setTimeout(() => searchRemainingGenerationsAsync(nextGenEntries, searchTerm, visited, callback, getLastSearch, depth + 1), 0);
+      }
+    });
+};
+
+function childFieldsMatchingSearchTerm(field, searchTerm, callback, getLastSearch) {
+  const visited = new Set();
+
+  let generationEntries = [[field, []]];
+  searchRemainingGenerationsAsync(generationEntries, searchTerm, visited, callback, getLastSearch, 0);
+}
+
 type FieldViewProps = {|
   field: Field,
   selections: Selections,
@@ -1000,6 +1076,7 @@ type FieldViewProps = {|
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
+  searchTerm: string,
 |};
 
 function defaultInputObjectFields(
@@ -1082,6 +1159,14 @@ function defaultArgs(
 }
 
 class FieldView extends React.PureComponent<FieldViewProps, {}> {
+  constructor (props) {
+    super(props)
+      this.state = {
+        childMatches: [],
+        lastSearch: ""
+      }
+  }
+
   _previousSelection: ?SelectionNode;
   _addAllFieldsToSelections = rawSubfields => {
     const subFields: Array<FieldNode> = !!rawSubfields
@@ -1123,10 +1208,8 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     this.props.modifySelections(nextSelections);
   };
 
-  _addFieldToSelections = rawSubfields => {
-    const nextSelections = [
-      ...this.props.selections,
-      this._previousSelection || {
+  _makeSelection = () => {
+      return this._previousSelection || {
         kind: 'Field',
         name: {kind: 'Name', value: this.props.field.name},
         arguments: defaultArgs(
@@ -1134,7 +1217,13 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
           this.props.makeDefaultArg,
           this.props.field,
         ),
-      },
+      }
+  };
+
+  _addFieldToSelections = () => {
+    const nextSelections = [
+      ...this.props.selections,
+      this._makeSelection()
     ];
 
     this.props.modifySelections(nextSelections);
@@ -1152,7 +1241,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
 
       shouldSelectAllSubfields
         ? this._addAllFieldsToSelections(rawSubfields)
-        : this._addFieldToSelections(rawSubfields);
+        : this._addFieldToSelections();
     }
   };
 
@@ -1202,8 +1291,10 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
   };
 
   _modifyChildSelections = (selections: Selections) => {
+    const selection = this._getSelection();
+    const oldSelections = this.props.selections.concat(!!selection ? [] : [this._makeSelection()]);
     this.props.modifySelections(
-      this.props.selections.map(selection => {
+      oldSelections.map(selection => {
         if (
           selection.kind === 'Field' &&
           this.props.field.name === selection.name.value
@@ -1228,8 +1319,18 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     );
   };
 
+  componentDidUpdate() {
+      if (this.props.searchTerm.length && this.state.lastSearch !== this.props.searchTerm) {
+          this.setState(
+              {...this.state, lastSearch: this.props.searchTerm, childMatches: this.state.childMatches.filter(([field, parents]) => field.name.includes(this.props.searchTerm))},
+              () => {
+                  childFieldsMatchingSearchTerm(this.props.field, this.props.searchTerm, (x)=>this.setState({...this.state, childMatches: x}), () => this.state.lastSearch);
+              });
+      }
+  };
+
   render() {
-    const {field, schema, getDefaultFieldNames, styleConfig} = this.props;
+    const {field, schema, getDefaultFieldNames, styleConfig, searchTerm} = this.props;
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
@@ -1283,26 +1384,17 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       </div>
     );
 
-    if (
-      selection &&
-      (isObjectType(type) || isInterfaceType(type) || isUnionType(type))
-    ) {
-      const fields = isUnionType(type) ? {} : type.getFields();
-      const childSelections = selection
-        ? selection.selectionSet
-          ? selection.selectionSet.selections
-          : []
-        : [];
-      return (
-        <div>
-          {node}
-          <div style={{marginLeft: 16}}>
-            {Object.keys(fields)
-              .sort()
-              .map(fieldName => (
-                <FieldView
-                  key={fieldName}
-                  field={fields[fieldName]}
+    const childSelections = selection
+      ? selection.selectionSet
+        ? selection.selectionSet.selections
+        : []
+      : [];
+
+    if (!!this.props.searchResult) {
+      if (this.props.elidedParents.length) {
+        return (<FieldView
+                  key={this.props.elidedParents[0].name}
+                  field={this.props.elidedParents[0]}
                   selections={childSelections}
                   modifySelections={this._modifyChildSelections}
                   schema={schema}
@@ -1311,33 +1403,164 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   styleConfig={this.props.styleConfig}
-                />
-              ))}
+                  searchTerm={""}
+                  searchResult={this.props.searchResult}
+                  elidedParents={this.props.elidedParents.slice(1)}
+                />);
+      } else {
+        return (<FieldView
+                  key={this.props.searchResult.name}
+                  field={this.props.searchResult}
+                  selections={childSelections}
+                  modifySelections={this._modifyChildSelections}
+                  schema={schema}
+                  getDefaultFieldNames={getDefaultFieldNames}
+                  getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
+                  styleConfig={this.props.styleConfig}
+                  searchTerm={""}
+                />);
+      }
+    } else if (isObjectType(type) ||
+               isInterfaceType(type) ||
+               isUnionType(type)) {
+      if (!!selection) {
+        const fields = isUnionType(type) ? {} : type.getFields();
+        const children = (
+          <div style={{marginLeft: 16}}>
+            {Object.keys(fields)
+                   .sort()
+                   .map(fieldName => {
+                     return (<FieldView
+                               key={fieldName}
+                               field={fields[fieldName]}
+                               selections={childSelections}
+                               modifySelections={this._modifyChildSelections}
+                               schema={schema}
+                               getDefaultFieldNames={getDefaultFieldNames}
+                               getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                               makeDefaultArg={this.props.makeDefaultArg}
+                               onRunOperation={this.props.onRunOperation}
+                               styleConfig={this.props.styleConfig}
+                               searchTerm={searchTerm}
+                               isParentSelected={!!selection}
+                             />);
+                   })
+            }
+
             {isInterfaceType(type) || isUnionType(type)
               ? schema
-                  .getPossibleTypes(type)
-                  .map(type => (
-                    <AbstractView
-                      key={type.name}
-                      implementingType={type}
-                      selections={childSelections}
-                      modifySelections={this._modifyChildSelections}
-                      schema={schema}
-                      getDefaultFieldNames={getDefaultFieldNames}
-                      getDefaultScalarArgValue={
-                        this.props.getDefaultScalarArgValue
-                      }
-                      makeDefaultArg={this.props.makeDefaultArg}
-                      onRunOperation={this.props.onRunOperation}
-                      styleConfig={this.props.styleConfig}
-                    />
-                  ))
-              : null}
+                .getPossibleTypes(type)
+                .map(type => (
+                  <AbstractView
+                    key={type.name}
+                    implementingType={type}
+                    selections={childSelections}
+                    modifySelections={this._modifyChildSelections}
+                    schema={schema}
+                    getDefaultFieldNames={getDefaultFieldNames}
+                    getDefaultScalarArgValue={
+                    this.props.getDefaultScalarArgValue
+                    }
+                    makeDefaultArg={this.props.makeDefaultArg}
+                    onRunOperation={this.props.onRunOperation}
+                    styleConfig={this.props.styleConfig}
+                  />
+                ))
+            : null}
           </div>
-        </div>
-      );
+        );
+
+        return (
+          <div>
+            {node}
+            {children}
+          </div>
+        );
+
+      } else if (searchTerm.length) {
+        if (this.state.childMatches.length) {
+          const children = (
+            <div style={{marginLeft: 16}}>
+              {this.state.childMatches
+                 .filter(searchResult => searchResult[1].length)
+                 .map((searchResult, index) => {
+                   if (searchResult[1].length > 1) {
+                     return (
+                       <div key={searchResult[1][1].name + index}>
+                         ... {searchResult[1].length - 1} elided ...
+                         <div style={{marginLeft: 16}}>
+                           <FieldView
+                             key={searchResult[1][1].name}
+                             field={searchResult[1][1]}
+                             selections={childSelections}
+                             modifySelections={this._modifyChildSelections}
+                             schema={schema}
+                             getDefaultFieldNames={getDefaultFieldNames}
+                             getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                             makeDefaultArg={this.props.makeDefaultArg}
+                             onRunOperation={this.props.onRunOperation}
+                             styleConfig={this.props.styleConfig}
+                             searchTerm={""}
+                             searchResult={searchResult[0]}
+                             elidedParents={searchResult[1].slice(2)}
+                           />
+                         </div>
+                       </div>);
+                   } else {
+                     return (
+                       <FieldView
+                         key={searchResult[0].name}
+                         field={searchResult[0]}
+                         selections={childSelections}
+                         modifySelections={this._modifyChildSelections}
+                         schema={schema}
+                         getDefaultFieldNames={getDefaultFieldNames}
+                         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                         makeDefaultArg={this.props.makeDefaultArg}
+                         onRunOperation={this.props.onRunOperation}
+                         styleConfig={this.props.styleConfig}
+                         searchTerm={""}
+                       />);
+                   }
+                 })}
+            </div>
+          );
+
+          return (
+            <div>
+              {node}
+              {children}
+            </div>
+          );
+
+        }
+      }
     }
+
     return node;
+  }
+}
+
+type SearchProps = {
+    value: string,
+};
+
+class Search extends React.PureComponent<SearchProps, {}> {
+    _ref: ?any;
+
+  render() {
+    return (
+        <input
+            ref={ref => {
+                this._ref = ref;
+            }}
+            type="text"
+            onChange={this.props.onChange}
+            value={this.props.value}
+        />
+    );
   }
 }
 
@@ -1438,6 +1661,13 @@ type RootViewProps = {|
 |};
 
 class RootView extends React.PureComponent<RootViewProps, {}> {
+  constructor (props) {
+    super(props)
+      this.state = {
+        searchTerm: ''
+      }
+  }
+
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
 
   _modifySelections = (selections: Selections) => {
@@ -1484,6 +1714,11 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     if (isRunShortcut(event)) {
       this.props.onRunOperation(this.props.name);
     }
+  };
+
+  _handleSearchChange = (event, fields) => {
+      const searchTerm = event.target.value;
+      this.setState({...this.state, searchTerm});
   };
 
   render() {
@@ -1537,6 +1772,10 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
             ''
           )}
         </div>
+        <Search
+            value={this.state.searchTerm}
+            onChange={(event) => this._handleSearchChange(event, fields)}
+        />
 
         {Object.keys(fields)
           .sort()
@@ -1552,6 +1791,8 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
               styleConfig={this.props.styleConfig}
+              searchTerm={this.state.searchTerm}
+              isParentSelected={true}
             />
           ))}
       </div>
