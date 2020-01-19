@@ -1233,8 +1233,14 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
+    let className = 'graphiql-explorer-node';
+    
+    if (field.isDeprecated) {
+      className += ' deprecated';
+    }
+
     const node = (
-      <div className="graphiql-explorer-node">
+      <div className={className}>
         <span
           title={field.description}
           style={{
