@@ -1868,7 +1868,7 @@ class Explorer extends React.PureComponent<Props, State> {
           },
         )}
         <div
-          className="variable-editor-title"
+          className="variable-editor-title graphiql-explorer-actions"
           style={styleConfig.styles.explorerActionsStyle}>
           {!!queryFields ? (
             <button
@@ -1942,15 +1942,15 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
     const attribution = this.props.showAttribution ? <Attribution /> : null;
     return (
       <div
-        className="historyPaneWrap"
+        className="docExplorerWrap"
         style={{
           height: '100%',
           width: this.props.width,
           zIndex: 7,
           display: this.props.explorerIsOpen ? 'block' : 'none',
         }}>
-        <div className="history-title-bar">
-          <div className="history-title">{this.props.title}</div>
+        <div className="doc-explorer-title-bar">
+          <div className="doc-explorer-title">{this.props.title}</div>
           <div className="doc-explorer-rhs">
             <div
               className="docExplorerHide"
@@ -1959,7 +1959,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
             </div>
           </div>
         </div>
-        <div className="history-contents">
+        <div className="doc-explorer-contents">
           <div
             style={{
               overflow: 'scroll',
