@@ -1234,9 +1234,9 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
     let className = 'graphiql-explorer-node';
-    
+
     if (field.isDeprecated) {
-      className += ' deprecated';
+      className += ' graphiql-explorer-deprecated';
     }
 
     const node = (
@@ -1267,7 +1267,11 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
               styleConfig={this.props.styleConfig}
             />
           )}
-          <span style={{color: styleConfig.colors.property}}>{field.name}</span>
+          <span
+            style={{color: styleConfig.colors.property}}
+            className="graphiql-explorer-field-view">
+            {field.name}
+          </span>
         </span>
         {selection && args.length ? (
           <div style={{marginLeft: 16}}>
