@@ -1434,7 +1434,7 @@ const defaultStyles = {
 
 type RootViewProps = {|
   schema: GraphQLSchema,
-  isLast: Boolean,
+  isLast: boolean,
   fields: ?GraphQLFieldMap<any, any>,
   operation: OperationType,
   name: ?string,
@@ -1805,7 +1805,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('query': NewOperationType)}>
-          Query
+          New Query
         </option>
       ) : null,
       !!mutationFields ? (
@@ -1814,7 +1814,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('mutation': NewOperationType)}>
-          Mutation
+          New Mutation
         </option>
       ) : null,
       !!subscriptionFields ? (
@@ -1823,7 +1823,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('subscription': NewOperationType)}>
-          Subscription
+          New Subscription
         </option>
       ) : null,
     ].filter(Boolean);
@@ -1869,6 +1869,8 @@ class Explorer extends React.PureComponent<Props, State> {
           </div>
         </div>
       );
+
+    const attribution = this.props.showAttribution ? <Attribution /> : null;
 
     return (
       <div
@@ -1976,6 +1978,7 @@ class Explorer extends React.PureComponent<Props, State> {
               );
             },
           )}
+          {attribution}
         </div>
 
         {actionsEl}
@@ -2020,7 +2023,6 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
   };
 
   render() {
-    const attribution = this.props.showAttribution ? <Attribution /> : null;
     return (
       <div
         className="docExplorerWrap"
@@ -2048,7 +2050,6 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
           <ErrorBoundary>
             <Explorer {...this.props} />
           </ErrorBoundary>
-          {attribution}
         </div>
       </div>
     );
