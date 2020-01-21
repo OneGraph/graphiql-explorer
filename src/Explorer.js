@@ -126,6 +126,7 @@ type NewOperationType = 'query' | 'mutation' | 'subscription';
 type State = {|
   operation: ?OperationDefinitionNode,
   newOperationType: NewOperationType,
+  operationToScrollTo: ?string,
 |};
 
 type Selections = $ReadOnlyArray<SelectionNode>;
@@ -1445,6 +1446,7 @@ type RootViewProps = {|
   ) => void,
   onOperationRename: (query: string) => void,
   onRunOperation: (name: ?string) => void,
+  onMount: (rootViewElId: string) => void,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
@@ -1516,15 +1518,28 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
     }
   };
 
+  _rootViewElId = () => {
+    const {operation, name} = this.props;
+    const rootViewElId = `${operation}-${name || 'unknown'}`;
+    return rootViewElId;
+  };
+
+  componentDidMount() {
+    const rootViewElId = this._rootViewElId();
+
+    this.props.onMount(rootViewElId);
+  }
+
   render() {
     const {
       operation,
-      name,
       definition,
       schema,
       getDefaultFieldNames,
       styleConfig,
     } = this.props;
+    const rootViewElId = this._rootViewElId();
+
     const fields = this.props.fields || {};
     const operationDef = definition;
     const selections = operationDef.selectionSet.selections;
@@ -1534,7 +1549,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
 
     return (
       <div
-        id={`${operation}-${name || 'unknown'}`}
+        id={rootViewElId}
         style={{
           // The actions bar has its own top border
           borderBottom: this.props.isLast ? 'none' : '1px solid #d6d6d6',
@@ -1626,7 +1641,11 @@ class Explorer extends React.PureComponent<Props, State> {
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
   };
 
-  state = {newOperationType: 'query', operation: null};
+  state = {
+    newOperationType: 'query',
+    operation: null,
+    operationToScrollTo: null,
+  };
 
   _ref: ?any;
   _resetScroll = () => {
@@ -1643,6 +1662,18 @@ class Explorer extends React.PureComponent<Props, State> {
 
   _setAddOperationType = (value: NewOperationType) => {
     this.setState({newOperationType: value});
+  };
+
+  _handleRootViewMount = (rootViewElId: string) => {
+    if (
+      !!this.state.operationToScrollTo &&
+      this.state.operationToScrollTo === rootViewElId
+    ) {
+      var selector = `.graphiql-explorer-root #${rootViewElId}`;
+
+      var el = document.querySelector(selector);
+      el && el.scrollIntoView();
+    }
   };
 
   render() {
@@ -1795,35 +1826,40 @@ class Explorer extends React.PureComponent<Props, State> {
         definitions: newDefinitions,
       };
 
+      this.setState({operationToScrollTo: `${kind}-${newOperationName}`});
+
       this.props.onEdit(print(newOperationDef));
     };
 
     const actionsOptions = [
       !!queryFields ? (
         <option
+          key="query"
           className={'toolbar-button'}
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('query': NewOperationType)}>
-          New Query
+          Query
         </option>
       ) : null,
       !!mutationFields ? (
         <option
+          key="mutation"
           className={'toolbar-button'}
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('mutation': NewOperationType)}>
-          New Mutation
+          Mutation
         </option>
       ) : null,
       !!subscriptionFields ? (
         <option
+          key="subscription"
           className={'toolbar-button'}
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('subscription': NewOperationType)}>
-          New Subscription
+          Subscription
         </option>
       ) : null,
     ].filter(Boolean);
@@ -1846,6 +1882,14 @@ class Explorer extends React.PureComponent<Props, State> {
               borderTop: '1px solid rgb(214, 214, 214)',
             }}
             onSubmit={event => event.preventDefault()}>
+            <span
+              style={{
+                display: 'inline-block',
+                flexGrow: '0',
+                textAlign: 'right',
+              }}>
+              Add new{' '}
+            </span>
             <select
               onChange={event => this._setAddOperationType(event.target.value)}
               value={this.state.newOperationType}
@@ -1950,6 +1994,7 @@ class Explorer extends React.PureComponent<Props, State> {
                   definition={operation}
                   onOperationRename={onOperationRename}
                   onTypeName={fragmentTypeName}
+                  onMount={this._handleRootViewMount}
                   onEdit={newDefinition => {
                     const newQuery = {
                       ...parsedQuery,
