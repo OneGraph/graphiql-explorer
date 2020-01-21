@@ -1796,6 +1796,20 @@ class Explorer extends React.PureComponent<Props, State> {
       };
 
       this.props.onEdit(print(newOperationDef));
+
+      const framesToWait = 5;
+      // This is inherently racey, but if it fails it's not a huge deal.
+      setTimeout(
+        () => {
+          // Optimistically try to scroll to the newly added operation
+          var selector = `.graphiql-explorer-root #${kind}-${newOperationName}`;
+
+          var el = document.querySelector(selector);
+          el && el.scrollIntoView();
+        },
+        // five "frames" to have inserted the element
+        16 * framesToWait,
+      );
     };
 
     const actionsOptions = [
@@ -1805,7 +1819,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('query': NewOperationType)}>
-          New Query
+          Query
         </option>
       ) : null,
       !!mutationFields ? (
@@ -1814,7 +1828,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('mutation': NewOperationType)}>
-          New Mutation
+          Mutation
         </option>
       ) : null,
       !!subscriptionFields ? (
@@ -1823,7 +1837,7 @@ class Explorer extends React.PureComponent<Props, State> {
           style={styleConfig.styles.buttonStyle}
           type="link"
           value={('subscription': NewOperationType)}>
-          New Subscription
+          Subscription
         </option>
       ) : null,
     ].filter(Boolean);
@@ -1846,6 +1860,14 @@ class Explorer extends React.PureComponent<Props, State> {
               borderTop: '1px solid rgb(214, 214, 214)',
             }}
             onSubmit={event => event.preventDefault()}>
+            <span
+              style={{
+                display: 'inline-block',
+                flexGrow: '0',
+                textAlign: 'right',
+              }}>
+              Add new{' '}
+            </span>
             <select
               onChange={event => this._setAddOperationType(event.target.value)}
               value={this.state.newOperationType}
