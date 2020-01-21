@@ -1836,7 +1836,7 @@ class Explorer extends React.PureComponent<Props, State> {
             maxHeight: '50px',
             overflow: 'none',
           }}>
-          <div
+          <form
             className="variable-editor-title graphiql-explorer-actions"
             style={{
               ...styleConfig.styles.explorerActionsStyle,
@@ -1844,14 +1844,16 @@ class Explorer extends React.PureComponent<Props, State> {
               flexDirection: 'row',
               alignItems: 'center',
               borderTop: '1px solid rgb(214, 214, 214)',
-            }}>
+            }}
+            onSubmit={event => event.preventDefault()}>
             <select
               onChange={event => this._setAddOperationType(event.target.value)}
               value={this.state.newOperationType}
-              style={{flexGrow: '9'}}>
+              style={{flexGrow: '2'}}>
               {actionsOptions}
             </select>
             <button
+              type="submit"
               className="toolbar-button"
               onClick={() =>
                 this.state.newOperationType
@@ -1861,12 +1863,11 @@ class Explorer extends React.PureComponent<Props, State> {
               style={{
                 ...styleConfig.styles.buttonStyle,
                 height: '22px',
-                flexGrow: '1',
-                width: 'unset',
+                width: '22px',
               }}>
               <span>+</span>
             </button>
-          </div>
+          </form>
         </div>
       );
 
@@ -2018,7 +2019,7 @@ class ErrorBoundary extends React.Component<
 class ExplorerWrapper extends React.PureComponent<Props, {}> {
   static defaultValue = defaultValue;
   static defaultProps = {
-    width: 380,
+    width: 320,
     title: 'Explorer',
   };
 
@@ -2027,8 +2028,9 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
       <div
         className="docExplorerWrap"
         style={{
-          maxHeight: '100%',
+          height: '100%',
           width: this.props.width,
+          minWidth: this.props.width,
           zIndex: 7,
           display: this.props.explorerIsOpen ? 'flex' : 'none',
           flexDirection: 'column',
@@ -2046,7 +2048,12 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
         </div>
         <div
           className="doc-explorer-contents"
-          style={{padding: '0px', overflowY: 'unset'}}>
+          style={{
+            padding: '0px',
+            /* Unset overflowY since docExplorerWrap sets it and it'll
+            cause two scrollbars (one for the container and one for the schema tree) */
+            overflowY: 'unset',
+          }}>
           <ErrorBoundary>
             <Explorer {...this.props} />
           </ErrorBoundary>
