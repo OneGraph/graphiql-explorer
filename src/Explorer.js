@@ -1453,8 +1453,11 @@ type RootViewProps = {|
   styleConfig: StyleConfig,
 |};
 
-class RootView extends React.PureComponent<RootViewProps, {}> {
-  state = {newOperationType: 'query'};
+class RootView extends React.PureComponent<
+  RootViewProps,
+  {|newOperationType: NewOperationType, displayTitleActions: boolean|},
+> {
+  state = {newOperationType: 'query', displayTitleActions: false};
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
 
   _modifySelections = (selections: Selections) => {
@@ -1556,7 +1559,11 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
           marginBottom: '0em',
           paddingBottom: '1em',
         }}>
-        <div style={{color: styleConfig.colors.keyword, paddingBottom: 4}}>
+        <div
+          style={{color: styleConfig.colors.keyword, paddingBottom: 4}}
+          className="graphiql-operation-title-bar"
+          onMouseEnter={() => this.setState({displayTitleActions: true})}
+          onMouseLeave={() => this.setState({displayTitleActions: false})}>
           {operation}{' '}
           <span style={{color: styleConfig.colors.def}}>
             <input
@@ -1579,6 +1586,38 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               <br />
               {`on ${this.props.onTypeName}`}
             </span>
+          ) : (
+            ''
+          )}
+          {!!this.state.displayTitleActions ? (
+            <>
+              <button
+                type="submit"
+                className="toolbar-button"
+                onClick={() => this.props.onOperationDestroy()}
+                style={{
+                  ...styleConfig.styles.buttonStyle,
+                  height: '15px',
+                  width: '15px',
+                  display: 'inline-block',
+                  fontSize: 'smaller',
+                }}>
+                <span>{'\u2715'}</span>
+              </button>
+              <button
+                type="submit"
+                className="toolbar-button"
+                onClick={() => this.props.onOperationClone()}
+                style={{
+                  ...styleConfig.styles.buttonStyle,
+                  height: '15px',
+                  width: '15px',
+                  display: 'inline-block',
+                  fontSize: 'smaller',
+                }}>
+                <span>{'c'}</span>
+              </button>
+            </>
           ) : (
             ''
           )}
@@ -1760,6 +1799,48 @@ class Explorer extends React.PureComponent<Props, State> {
       };
     };
 
+    const cloneOperation = targetOperation => {
+      const kind = targetOperation.operation;
+      const newOperationName =
+        ((targetOperation.name && targetOperation.name.value) || '') + 'Copy';
+
+      const newName = {
+        kind: 'Name',
+        value: newOperationName,
+        loc: undefined,
+      };
+
+      const newOperation = {...targetOperation, name: newName};
+
+      const existingDefs = parsedQuery.definitions;
+
+      const newDefinitions = [...existingDefs, newOperation];
+
+      this.setState({operationToScrollTo: `${kind}-${newOperationName}`});
+
+      return {
+        ...parsedQuery,
+        definitions: newDefinitions,
+      };
+    };
+
+    const destroyOperation = targetOperation => {
+      const existingDefs = parsedQuery.definitions;
+
+      const newDefinitions = existingDefs.filter(existingOperation => {
+        if (targetOperation === existingOperation) {
+          return false;
+        } else {
+          return true;
+        }
+      });
+
+      return {
+        ...parsedQuery,
+        definitions: newDefinitions,
+      };
+    };
+
     const addOperation = (kind: NewOperationType) => {
       const existingDefs = parsedQuery.definitions;
 
@@ -1829,20 +1910,6 @@ class Explorer extends React.PureComponent<Props, State> {
       this.setState({operationToScrollTo: `${kind}-${newOperationName}`});
 
       this.props.onEdit(print(newOperationDef));
-
-      const framesToWait = 5;
-      // This is inherently racey, but if it fails it's not a huge deal.
-      setTimeout(
-        () => {
-          // Optimistically try to scroll to the newly added operation
-          var selector = `.graphiql-explorer-root #${kind}-${newOperationName}`;
-
-          var el = document.querySelector(selector);
-          el && el.scrollIntoView();
-        },
-        // five "frames" to have inserted the element
-        16 * framesToWait,
-      );
     };
 
     const actionsOptions = [
@@ -1972,6 +2039,16 @@ class Explorer extends React.PureComponent<Props, State> {
                 this.props.onEdit(print(newOperationDef));
               };
 
+              const onOperationClone = () => {
+                const newOperationDef = cloneOperation(operation);
+                this.props.onEdit(print(newOperationDef));
+              };
+
+              const onOperationDestroy = () => {
+                const newOperationDef = destroyOperation(operation);
+                this.props.onEdit(print(newOperationDef));
+              };
+
               const fragmentType =
                 operation.kind === 'FragmentDefinition' &&
                 operation.typeCondition.kind === 'NamedType' &&
@@ -2007,6 +2084,8 @@ class Explorer extends React.PureComponent<Props, State> {
                   name={operationName}
                   definition={operation}
                   onOperationRename={onOperationRename}
+                  onOperationDestroy={onOperationDestroy}
+                  onOperationClone={onOperationClone}
                   onTypeName={fragmentTypeName}
                   onMount={this._handleRootViewMount}
                   onEdit={newDefinition => {
