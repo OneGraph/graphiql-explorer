@@ -26,12 +26,16 @@ import {
   isWrappingType,
   parse,
   print,
+  parseType,
+  visit,
 } from 'graphql';
 
 import type {
   ArgumentNode,
+  DefinitionNode,
   DocumentNode,
   FieldNode,
+  FragmentSpread,
   GraphQLArgument,
   GraphQLEnumType,
   GraphQLField,
@@ -48,8 +52,11 @@ import type {
   ObjectValueNode,
   SelectionNode,
   SelectionSetNode,
+  VariableDefinitionNode,
   ValueNode,
 } from 'graphql';
+
+const AvailableFragmentsContext = React.createContext({});
 
 type Field = GraphQLField<any, any>;
 
@@ -85,6 +92,7 @@ type StyleMap = {
 type Styles = {
   explorerActionsStyle: StyleMap,
   buttonStyle: StyleMap,
+  actionButtonStyle: StyleMap,
 };
 
 type StyleConfig = {
@@ -116,6 +124,7 @@ type Props = {
   styles?: ?{
     explorerActionsStyle?: StyleMap,
     buttonStyle?: StyleMap,
+    actionButtonStyle?: StyleMap,
   },
   showAttribution: boolean,
 };
@@ -271,9 +280,12 @@ function unwrapInputType(inputType: GraphQLInputType): * {
 
 function coerceArgValue(
   argType: GraphQLScalarType | GraphQLEnumType,
-  value: string,
+  value: string | VariableDefinitionNode,
 ): ValueNode {
-  if (isScalarType(argType)) {
+  // Handle the case where we're setting a variable as the value
+  if (typeof value !== 'string' && value.kind === 'VariableDefinition') {
+    return value.variable;
+  } else if (isScalarType(argType)) {
     try {
       switch (argType.name) {
         case 'String':
@@ -333,11 +345,16 @@ type InputArgViewProps = {|
   arg: GraphQLArgument,
   selection: ObjectValueNode,
   parentField: Field,
-  modifyFields: (fields: $ReadOnlyArray<ObjectFieldNode>) => void,
+  modifyFields: (
+    fields: $ReadOnlyArray<ObjectFieldNode>,
+    commit: boolean,
+  ) => ?DocumentNode,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
+  onCommit: (newDoc: DocumentNode) => void,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
 |};
 
 class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
@@ -354,6 +371,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     this._previousArgSelection = argSelection;
     this.props.modifyFields(
       selection.fields.filter(field => field !== argSelection),
+      true,
     );
   };
 
@@ -396,38 +414,73 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     if (!argSelection) {
       console.error('Unable to add arg for argType', argType);
     } else {
-      this.props.modifyFields([...(selection.fields || []), argSelection]);
+      return this.props.modifyFields(
+        [...(selection.fields || []), argSelection],
+        true,
+      );
     }
   };
 
-  _setArgValue = event => {
+  _setArgValue = (event, commit: boolean) => {
     const {selection} = this.props;
+    let settingToVariable = false;
+    try {
+      if (event.kind === 'VariableDefinition') {
+        settingToVariable = true;
+      }
+    } catch (e) {}
+
     const argSelection = this._getArgSelection();
+
     if (!argSelection) {
       console.error('missing arg selection when setting arg value');
       return;
     }
     const argType = unwrapInputType(this.props.arg.type);
-    if (!isLeafType(argType)) {
+
+    if (!isLeafType(argType) && !settingToVariable) {
       console.warn('Unable to handle non leaf types in setArgValue');
       return;
     }
-    const targetValue = event.target.value;
+    let targetValue: string | VariableDefinitionNode;
+    let value: ?ValueNode;
 
-    this.props.modifyFields(
-      (selection.fields || []).map(field =>
-        field === argSelection
+    if (event === null || typeof event === 'undefined') {
+      value = null;
+    } else if (
+      !event.target &&
+      !!event.kind &&
+      event.kind === 'VariableDefinition'
+    ) {
+      targetValue = event;
+      value = targetValue.variable;
+    } else if (typeof event.kind === 'string') {
+      value = event;
+    } else if (event.target && typeof event.target.value === 'string') {
+      targetValue = event.target.value;
+      value = coerceArgValue(argType, targetValue);
+    }
+
+    const newDoc = this.props.modifyFields(
+      (selection.fields || []).map(field => {
+        const isTarget = field === argSelection;
+        const newField = isTarget
           ? {
               ...field,
-              value: coerceArgValue(argType, targetValue),
+              value: value,
             }
-          : field,
-      ),
+          : field;
+
+        return newField;
+      }),
+      commit,
     );
+
+    return newDoc;
   };
 
   _modifyChildFields = fields => {
-    this.props.modifyFields(
+    return this.props.modifyFields(
       this.props.selection.fields.map(field =>
         field.name.value === this.props.arg.name
           ? {
@@ -439,6 +492,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
             }
           : field,
       ),
+      true,
     );
   };
 
@@ -459,6 +513,8 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
+        onCommit={this.props.onCommit}
+        definition={this.props.definition}
       />
     );
   }
@@ -468,11 +524,16 @@ type ArgViewProps = {|
   parentField: Field,
   arg: GraphQLArgument,
   selection: FieldNode,
-  modifyArguments: (argumentNodes: $ReadOnlyArray<ArgumentNode>) => void,
+  modifyArguments: (
+    argumentNodes: $ReadOnlyArray<ArgumentNode>,
+    commit: boolean,
+  ) => ?DocumentNode,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
+  onCommit: (newDoc: DocumentNode) => void,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
 |};
 
 type ArgViewState = {||};
@@ -515,15 +576,16 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       arg => arg.name.value === this.props.arg.name,
     );
   };
-  _removeArg = () => {
+  _removeArg = (commit: boolean): ?DocumentNode => {
     const {selection} = this.props;
     const argSelection = this._getArgSelection();
     this._previousArgSelection = argSelection;
-    this.props.modifyArguments(
+    return this.props.modifyArguments(
       (selection.arguments || []).filter(arg => arg !== argSelection),
+      commit,
     );
   };
-  _addArg = () => {
+  _addArg = (commit: boolean): ?DocumentNode => {
     const {
       selection,
       getDefaultScalarArgValue,
@@ -561,41 +623,78 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
 
     if (!argSelection) {
       console.error('Unable to add arg for argType', argType);
+      return null;
     } else {
-      this.props.modifyArguments([
-        ...(selection.arguments || []),
-        argSelection,
-      ]);
+      return this.props.modifyArguments(
+        [...(selection.arguments || []), argSelection],
+        commit,
+      );
     }
   };
-  _setArgValue = event => {
+  _setArgValue = (
+    event: SyntheticInputEvent<*> | VariableDefinitionNode,
+    commit: boolean,
+  ) => {
+    let settingToNull = false;
+    let settingToVariable = false;
+    let settingToLiteralValue = false;
+    try {
+      if (event.kind === 'VariableDefinition') {
+        settingToVariable = true;
+      } else if (event === null || typeof event === 'undefined') {
+        settingToNull = true;
+      } else if (typeof event.kind === 'string') {
+        settingToLiteralValue = true;
+      }
+    } catch (e) {}
     const {selection} = this.props;
     const argSelection = this._getArgSelection();
-    if (!argSelection) {
+    if (!argSelection && !settingToVariable) {
       console.error('missing arg selection when setting arg value');
       return;
     }
     const argType = unwrapInputType(this.props.arg.type);
-    if (!isLeafType(argType)) {
+
+    const handleable =
+      isLeafType(argType) ||
+      settingToVariable ||
+      settingToNull ||
+      settingToLiteralValue;
+
+    if (!handleable) {
       console.warn('Unable to handle non leaf types in setArgValue');
       return;
     }
 
-    const targetValue = event.target.value;
+    let targetValue: string | VariableDefinitionNode;
+    let value: ValueNode;
 
-    this.props.modifyArguments(
+    if (event === null || typeof event === 'undefined') {
+      value = null;
+    } else if (event.target && typeof event.target.value === 'string') {
+      targetValue = event.target.value;
+      value = coerceArgValue(argType, targetValue);
+    } else if (!event.target && event.kind === 'VariableDefinition') {
+      targetValue = event;
+      value = targetValue.variable;
+    } else if (typeof event.kind === 'string') {
+      value = event;
+    }
+
+    return this.props.modifyArguments(
       (selection.arguments || []).map(a =>
         a === argSelection
           ? {
               ...a,
-              value: coerceArgValue(argType, targetValue),
+              value: value,
             }
           : a,
       ),
+      commit,
     );
   };
 
-  _setArgFields = fields => {
+  _setArgFields = (fields, commit: boolean): ?DocumentNode => {
     const {selection} = this.props;
     const argSelection = this._getArgSelection();
     if (!argSelection) {
@@ -603,7 +702,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       return;
     }
 
-    this.props.modifyArguments(
+    return this.props.modifyArguments(
       (selection.arguments || []).map(a =>
         a === argSelection
           ? {
@@ -615,6 +714,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
             }
           : a,
       ),
+      commit,
     );
   };
 
@@ -635,6 +735,8 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
+        onCommit={this.props.onCommit}
+        definition={this.props.definition}
       />
     );
   }
@@ -644,24 +746,13 @@ function isRunShortcut(event) {
   return event.metaKey && event.key === 'Enter';
 }
 
-type AbstractArgViewProps = {|
-  argValue: ?ValueNode,
-  arg: GraphQLArgument,
-  parentField: Field,
-  setArgValue: (event: SyntheticInputEvent<*>) => void,
-  setArgFields: (fields: $ReadOnlyArray<ObjectFieldNode>) => void,
-  addArg: () => void,
-  removeArg: () => void,
-  getDefaultScalarArgValue: GetDefaultScalarArgValue,
-  makeDefaultArg: ?MakeDefaultArg,
-  onRunOperation: void => void,
-  styleConfig: StyleConfig,
-|};
-
 type ScalarInputProps = {|
   arg: GraphQLArgument,
   argValue: ValueNode,
-  setArgValue: (event: SyntheticInputEvent<*>) => void,
+  setArgValue: (
+    SyntheticInputEvent<*> | VariableDefinitionNode,
+    commit: boolean,
+  ) => ?DocumentNode,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
 |};
@@ -669,7 +760,7 @@ type ScalarInputProps = {|
 class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
   _ref: ?any;
   _handleChange = event => {
-    this.props.setArgValue(event);
+    this.props.setArgValue(event, true);
   };
 
   componentDidMount() {
@@ -722,7 +813,33 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
   }
 }
 
-class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
+type AbstractArgViewProps = {|
+  argValue: ?ValueNode,
+  arg: GraphQLArgument,
+  parentField: Field,
+  setArgValue: (
+    SyntheticInputEvent<*> | VariableDefinitionNode,
+    commit: boolean,
+  ) => ?DocumentNode,
+  setArgFields: (
+    fields: $ReadOnlyArray<ObjectFieldNode>,
+    commit: boolean,
+  ) => ?DocumentNode,
+  addArg: (commit: boolean) => ?DocumentNode,
+  removeArg: (commit: boolean) => ?DocumentNode,
+  onCommit: (newDoc: DocumentNode) => void,
+  getDefaultScalarArgValue: GetDefaultScalarArgValue,
+  makeDefaultArg: ?MakeDefaultArg,
+  onRunOperation: void => void,
+  styleConfig: StyleConfig,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
+|};
+
+class AbstractArgView extends React.PureComponent<
+  AbstractArgViewProps,
+  {|displayArgActions: boolean|},
+> {
+  state = {displayArgActions: false};
   render() {
     const {argValue, arg, styleConfig} = this.props;
     /* TODO: handle List types*/
@@ -810,6 +927,8 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
                     makeDefaultArg={this.props.makeDefaultArg}
                     onRunOperation={this.props.onRunOperation}
                     styleConfig={this.props.styleConfig}
+                    onCommit={this.props.onCommit}
+                    definition={this.props.definition}
                   />
                 ))}
             </div>
@@ -824,6 +943,219 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
       }
     }
 
+    const variablize = () => {
+      /**
+      1. Find current operation variables
+      2. Find current arg value
+      3. Create a new variable
+      4. Replace current arg value with variable
+      5. Add variable to operation
+      */
+
+      const baseVariableName = arg.name;
+      const conflictingNameCount = (
+        this.props.definition.variableDefinitions || []
+      ).filter(varDef =>
+        varDef.variable.name.value.startsWith(baseVariableName),
+      ).length;
+
+      let variableName;
+      if (conflictingNameCount > 0) {
+        variableName = `${baseVariableName}${conflictingNameCount}`;
+      } else {
+        variableName = baseVariableName;
+      }
+      // To get an AST definition of our variable from the instantiated arg,
+      // we print it to a string, then parseType to get our AST.
+      const argPrintedType = arg.type.toString();
+      const argType = parseType(argPrintedType);
+
+      const base: VariableDefinitionNode = {
+        kind: 'VariableDefinition',
+        variable: {
+          kind: 'Variable',
+          name: {
+            kind: 'Name',
+            value: variableName,
+          },
+        },
+        type: argType,
+        directives: [],
+      };
+
+      const variableDefinitionByName = name =>
+        (this.props.definition.variableDefinitions || []).find(
+          varDef => varDef.variable.name.value === name,
+        );
+
+      let variable: ?VariableDefinitionNode;
+
+      let subVariableUsageCountByName: {
+        [key: string]: number,
+      } = {};
+
+      if (typeof argValue !== 'undefined' && argValue !== null) {
+        /** In the process of devariabilizing descendent selections,
+         * we may have caused their variable definitions to become unused.
+         * Keep track and remove any variable definitions with 1 or fewer usages.
+         * */
+        const cleanedDefaultValue = visit(argValue, {
+          Variable(node) {
+            const varName = node.name.value;
+            const varDef = variableDefinitionByName(varName);
+
+            subVariableUsageCountByName[varName] =
+              subVariableUsageCountByName[varName] + 1 || 1;
+
+            if (!varDef) {
+              return;
+            }
+
+            return varDef.defaultValue;
+          },
+        });
+
+        variable = {...base, defaultValue: cleanedDefaultValue};
+      } else {
+        variable = base;
+      }
+
+      const newlyUnusedVariables = Object.entries(subVariableUsageCountByName)
+        // $FlowFixMe: Can't get Object.entries to realize usageCount *must* be a number
+        .filter(([_, usageCount]: [string, number]) => usageCount < 2)
+        .map(([varName: string, _]) => varName);
+
+      if (variable) {
+        const newDoc: ?DocumentNode = this.props.setArgValue(variable, false);
+
+        if (newDoc) {
+          const targetOperation = newDoc.definitions.find(definition => {
+            if (
+              !!definition.operation &&
+              !!definition.name &&
+              !!definition.name.value &&
+              //
+              !!this.props.definition.name &&
+              !!this.props.definition.name.value
+            ) {
+              return definition.name.value === this.props.definition.name.value;
+            } else {
+              return false;
+            }
+          });
+
+          const newVariableDefinitions: Array<VariableDefinitionNode> = [
+            ...(targetOperation.variableDefinitions || []),
+            variable,
+          ].filter(
+            varDef =>
+              newlyUnusedVariables.indexOf(varDef.variable.name.value) === -1,
+          );
+
+          const newOperation = {
+            ...targetOperation,
+            variableDefinitions: newVariableDefinitions,
+          };
+
+          const existingDefs = newDoc.definitions;
+
+          const newDefinitions = existingDefs.map(existingOperation => {
+            if (targetOperation === existingOperation) {
+              return newOperation;
+            } else {
+              return existingOperation;
+            }
+          });
+
+          const finalDoc = {
+            ...newDoc,
+            definitions: newDefinitions,
+          };
+
+          this.props.onCommit(finalDoc);
+        }
+      }
+    };
+
+    const devariablize = () => {
+      /**
+       * 1. Find the current variable definition in the operation def
+       * 2. Extract its value
+       * 3. Replace the current arg value
+       * 4. Visit the resulting operation to see if there are any other usages of the variable
+       * 5. If not, remove the variableDefinition
+       */
+      if (!argValue || !argValue.name || !argValue.name.value) {
+        return;
+      }
+
+      const variableName = argValue.name.value;
+      const variableDefinition = (
+        this.props.definition.variableDefinitions || []
+      ).find(varDef => varDef.variable.name.value === variableName);
+
+      if (!variableDefinition) {
+        return;
+      }
+
+      const defaultValue = variableDefinition.defaultValue;
+
+      const newDoc: ?DocumentNode = this.props.setArgValue(defaultValue, false);
+
+      if (newDoc) {
+        const targetOperation: ?OperationDefinitionNode = newDoc.definitions.find(
+          definition =>
+            definition.name.value === this.props.definition.name.value,
+        );
+
+        if (!targetOperation) {
+          return;
+        }
+
+        // After de-variabilizing, see if the variable is still in use. If not, remove it.
+        let variableUseCount = 0;
+
+        visit(targetOperation, {
+          Variable(node) {
+            if (node.name.value === variableName) {
+              variableUseCount = variableUseCount + 1;
+            }
+          },
+        });
+
+        let newVariableDefinitions = targetOperation.variableDefinitions || [];
+
+        // A variable is in use if it shows up at least twice (once in the definition, once in the selection)
+        if (variableUseCount < 2) {
+          newVariableDefinitions = newVariableDefinitions.filter(
+            varDef => varDef.variable.name.value !== variableName,
+          );
+        }
+
+        const newOperation = {
+          ...targetOperation,
+          variableDefinitions: newVariableDefinitions,
+        };
+
+        const existingDefs = newDoc.definitions;
+
+        const newDefinitions = existingDefs.map(existingOperation => {
+          if (targetOperation === existingOperation) {
+            return newOperation;
+          } else {
+            return existingOperation;
+          }
+        });
+
+        const finalDoc = {
+          ...newDoc,
+          definitions: newDefinitions,
+        };
+
+        this.props.onCommit(finalDoc);
+      }
+    };
+
     return (
       <div
         style={{
@@ -836,7 +1168,15 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         data-arg-type={argType.name}>
         <span
           style={{cursor: 'pointer'}}
-          onClick={argValue ? this.props.removeArg : this.props.addArg}>
+          onClick={event => {
+            const shouldAdd = !argValue;
+            if (shouldAdd) {
+              this.props.addArg(true);
+            } else {
+              this.props.removeArg(true);
+            }
+            this.setState({displayArgActions: shouldAdd});
+          }}>
           {isInputObjectType(argType) ? (
             <span>
               {!!argValue
@@ -851,9 +1191,34 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
           )}
           <span
             style={{color: styleConfig.colors.attribute}}
-            title={arg.description}>
+            title={arg.description}
+            onMouseEnter={() => {
+              // Make implementation a bit easier and only show 'variablize' action if arg is already added
+              if (argValue !== null && typeof argValue !== 'undefined') {
+                this.setState({displayArgActions: true});
+              }
+            }}
+            onMouseLeave={() => this.setState({displayArgActions: false})}>
             {arg.name}
             {isRequiredArgument(arg) ? '*' : ''}:
+            {!this.state.displayArgActions ? null : (
+              <button
+                type="submit"
+                className="toolbar-button"
+                onClick={event => {
+                  event.preventDefault();
+                  event.stopPropagation();
+
+                  if (argValue && argValue.kind === 'Variable') {
+                    devariablize();
+                  } else {
+                    variablize();
+                  }
+                }}
+                style={styleConfig.styles.actionButtonStyle}>
+                <span style={{color: styleConfig.colors.variable}}>{'$'}</span>
+              </button>
+            )}
           </span>
         </span>{' '}
         {input || <span />}
@@ -865,43 +1230,49 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
 type AbstractViewProps = {|
   implementingType: GraphQLObjectType,
   selections: Selections,
-  modifySelections: (selections: Selections) => void,
+  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
   schema: GraphQLSchema,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
+  onCommit: (newDoc: DocumentNode) => void,
   styleConfig: StyleConfig,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
 |};
 
 class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   _previousSelection: ?InlineFragmentNode;
   _addFragment = () => {
-    this.props.modifySelections([
-      ...this.props.selections,
-      this._previousSelection || {
-        kind: 'InlineFragment',
-        typeCondition: {
-          kind: 'NamedType',
-          name: {kind: 'Name', value: this.props.implementingType.name},
+    this.props.modifySelections(
+      [
+        ...this.props.selections,
+        this._previousSelection || {
+          kind: 'InlineFragment',
+          typeCondition: {
+            kind: 'NamedType',
+            name: {kind: 'Name', value: this.props.implementingType.name},
+          },
+          selectionSet: {
+            kind: 'SelectionSet',
+            selections: this.props
+              .getDefaultFieldNames(this.props.implementingType)
+              .map(fieldName => ({
+                kind: 'Field',
+                name: {kind: 'Name', value: fieldName},
+              })),
+          },
         },
-        selectionSet: {
-          kind: 'SelectionSet',
-          selections: this.props
-            .getDefaultFieldNames(this.props.implementingType)
-            .map(fieldName => ({
-              kind: 'Field',
-              name: {kind: 'Name', value: fieldName},
-            })),
-        },
-      },
-    ]);
+      ],
+      true,
+    );
   };
   _removeFragment = () => {
     const thisSelection = this._getSelection();
     this._previousSelection = thisSelection;
     this.props.modifySelections(
       this.props.selections.filter(s => s !== thisSelection),
+      true,
     );
   };
   _getSelection = (): ?InlineFragmentNode => {
@@ -919,9 +1290,12 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
     }
   };
 
-  _modifyChildSelections = (selections: Selections) => {
+  _modifyChildSelections = (
+    selections: Selections,
+    commit: boolean,
+  ): ?DocumentNode => {
     const thisSelection = this._getSelection();
-    this.props.modifySelections(
+    return this.props.modifySelections(
       this.props.selections.map(selection => {
         if (selection === thisSelection) {
           return {
@@ -939,6 +1313,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         }
         return selection;
       }),
+      commit,
     );
   };
 
@@ -984,7 +1359,9 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
+                  onCommit={this.props.onCommit}
                   styleConfig={this.props.styleConfig}
+                  definition={this.props.definition}
                 />
               ))}
           </div>
@@ -994,16 +1371,87 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   }
 }
 
+type FragmentViewProps = {|
+  fragment: FragmentDefinitionNode,
+  selections: Selections,
+  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
+  onCommit: (newDoc: DocumentNode) => void,
+  schema: GraphQLSchema,
+  styleConfig: StyleConfig,
+|};
+
+class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
+  _previousSelection: ?InlineFragmentNode;
+  _addFragment = () => {
+    this.props.modifySelections(
+      [
+        ...this.props.selections,
+        this._previousSelection || {
+          kind: 'FragmentSpread',
+          name: this.props.fragment.name,
+        },
+      ],
+      true,
+    );
+  };
+  _removeFragment = () => {
+    const thisSelection = this._getSelection();
+    this._previousSelection = thisSelection;
+    this.props.modifySelections(
+      this.props.selections.filter(s => {
+        const isTargetSelection =
+          s.kind === 'FragmentSpread' &&
+          s.name.value === this.props.fragment.name.value;
+
+        return !isTargetSelection;
+      }),
+      true,
+    );
+  };
+  _getSelection = (): ?FragmentSpread => {
+    const selection = this.props.selections.find(selection => {
+      return (
+        selection.kind === 'FragmentSpread' &&
+        selection.name.value === this.props.fragment.name.value
+      );
+    });
+
+    return selection;
+  };
+
+  render() {
+    const {styleConfig} = this.props;
+    const selection = this._getSelection();
+    return (
+      <div>
+        <span
+          style={{cursor: 'pointer'}}
+          onClick={selection ? this._removeFragment : this._addFragment}>
+          <Checkbox
+            checked={!!selection}
+            styleConfig={this.props.styleConfig}
+          />
+          <span style={{color: styleConfig.colors.def}}>
+            {this.props.fragment.name.value}
+          </span>
+        </span>
+      </div>
+    );
+  }
+}
+
 type FieldViewProps = {|
   field: Field,
   selections: Selections,
-  modifySelections: (selections: Selections) => void,
+  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
   schema: GraphQLSchema,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
+  onCommit: (newDoc: DocumentNode) => void,
+  definition: FragmentDefinitionNode | OperationDefinitionNode,
 |};
 
 function defaultInputObjectFields(
@@ -1085,7 +1533,13 @@ function defaultArgs(
   return args;
 }
 
-class FieldView extends React.PureComponent<FieldViewProps, {}> {
+class FieldView extends React.PureComponent<
+  FieldViewProps,
+  {|displayFieldActions: boolean|},
+> {
+  state = {displayFieldActions: false};
+  static contextType = AvailableFragmentsContext;
+
   _previousSelection: ?SelectionNode;
   _addAllFieldsToSelections = rawSubfields => {
     const subFields: Array<FieldNode> = !!rawSubfields
@@ -1124,7 +1578,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       },
     ];
 
-    this.props.modifySelections(nextSelections);
+    this.props.modifySelections(nextSelections, true);
   };
 
   _addFieldToSelections = rawSubfields => {
@@ -1141,7 +1595,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       },
     ];
 
-    this.props.modifySelections(nextSelections);
+    this.props.modifySelections(nextSelections, true);
   };
 
   _handleUpdateSelections = event => {
@@ -1167,6 +1621,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       this.props.selections.filter(
         selection => selection !== previousSelection,
       ),
+      true,
     );
   };
   _getSelection = (): ?FieldNode => {
@@ -1183,13 +1638,16 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     }
   };
 
-  _setArguments = (argumentNodes: $ReadOnlyArray<ArgumentNode>) => {
+  _setArguments = (
+    argumentNodes: $ReadOnlyArray<ArgumentNode>,
+    commit: boolean,
+  ): ?DocumentNode => {
     const selection = this._getSelection();
     if (!selection) {
       console.error('Missing selection when setting arguments', argumentNodes);
       return;
     }
-    this.props.modifySelections(
+    return this.props.modifySelections(
       this.props.selections.map(s =>
         s === selection
           ? {
@@ -1202,11 +1660,15 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
             }
           : s,
       ),
+      commit,
     );
   };
 
-  _modifyChildSelections = (selections: Selections) => {
-    this.props.modifySelections(
+  _modifyChildSelections = (
+    selections: Selections,
+    commit: boolean,
+  ): ?DocumentNode => {
+    return this.props.modifySelections(
       this.props.selections.map(selection => {
         if (
           selection.kind === 'Field' &&
@@ -1229,6 +1691,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
         }
         return selection;
       }),
+      commit,
     );
   };
 
@@ -1242,6 +1705,11 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
     if (field.isDeprecated) {
       className += ' graphiql-explorer-deprecated';
     }
+
+    const applicableFragments =
+      isObjectType(type) || isInterfaceType(type) || isUnionType(type)
+        ? this.context[type.name]
+        : null;
 
     const node = (
       <div className={className}>
@@ -1257,7 +1725,21 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
           }}
           data-field-name={field.name}
           data-field-type={type.name}
-          onClick={this._handleUpdateSelections}>
+          onClick={this._handleUpdateSelections}
+          onMouseEnter={() => {
+            const containsMeaningfulSubselection =
+              isObjectType(type) &&
+              selection &&
+              selection.selectionSet &&
+              selection.selectionSet.selections.filter(
+                selection => selection.kind !== 'FragmentSpread',
+              ).length > 0;
+
+            if (containsMeaningfulSubselection) {
+              this.setState({displayFieldActions: true});
+            }
+          }}
+          onMouseLeave={() => this.setState({displayFieldActions: false})}>
           {isObjectType(type) ? (
             <span>
               {!!selection
@@ -1276,6 +1758,89 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
             className="graphiql-explorer-field-view">
             {field.name}
           </span>
+          {!this.state.displayFieldActions ? null : (
+            <button
+              type="submit"
+              className="toolbar-button"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                // 1. Create a fragment spread node
+                // 2. Copy selections from this object to fragment
+                // 3. Replace selections in this object with fragment spread
+                // 4. Add fragment to document
+                const typeName = type.name;
+                let newFragmentName = `${typeName}Fragment`;
+
+                const conflictingNameCount = (applicableFragments || []).filter(
+                  (fragment: FragmentDefinitionNode) => {
+                    return fragment.name.value.startsWith(newFragmentName);
+                  },
+                ).length;
+
+                if (conflictingNameCount > 0) {
+                  newFragmentName = `${newFragmentName}${conflictingNameCount}`;
+                }
+
+                const childSelections = selection
+                  ? selection.selectionSet
+                    ? selection.selectionSet.selections
+                    : []
+                  : [];
+
+                const nextSelections = [
+                  {
+                    kind: 'FragmentSpread',
+                    name: {
+                      kind: 'Name',
+                      value: newFragmentName,
+                    },
+                    directives: [],
+                  },
+                ];
+
+                const newFragmentDefinition: FragmentDefinitionNode = {
+                  kind: 'FragmentDefinition',
+                  name: {
+                    kind: 'Name',
+                    value: newFragmentName,
+                  },
+                  typeCondition: {
+                    kind: 'NamedType',
+                    name: {
+                      kind: 'Name',
+                      value: type.name,
+                    },
+                  },
+                  directives: [],
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: childSelections,
+                  },
+                };
+
+                const newDoc = this._modifyChildSelections(
+                  nextSelections,
+                  false,
+                );
+
+                if (newDoc) {
+                  const newDocWithFragment = {
+                    ...newDoc,
+                    definitions: [...newDoc.definitions, newFragmentDefinition],
+                  };
+
+                  this.props.onCommit(newDocWithFragment);
+                } else {
+                  console.warn('Unable to complete extractFragment operation');
+                }
+              }}
+              style={{
+                ...styleConfig.styles.actionButtonStyle,
+              }}>
+              <span>{'?'}</span>
+            </button>
+          )}
         </span>
         {selection && args.length ? (
           <div style={{marginLeft: 16}}>
@@ -1290,6 +1855,8 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                 makeDefaultArg={this.props.makeDefaultArg}
                 onRunOperation={this.props.onRunOperation}
                 styleConfig={this.props.styleConfig}
+                onCommit={this.props.onCommit}
+                definition={this.props.definition}
               />
             ))}
           </div>
@@ -1301,7 +1868,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
       selection &&
       (isObjectType(type) || isInterfaceType(type) || isUnionType(type))
     ) {
-      const fields = isUnionType(type) ? {} : type.getFields();
+      let fields = isUnionType(type) ? {} : type.getFields();
       const childSelections = selection
         ? selection.selectionSet
           ? selection.selectionSet.selections
@@ -1311,6 +1878,25 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
         <div>
           {node}
           <div style={{marginLeft: 16}}>
+            {!!applicableFragments
+              ? applicableFragments.map(fragment => {
+                  const type = schema.getType(
+                    fragment.typeCondition.name.value,
+                  );
+                  const fragmentName = fragment.name.value;
+                  return !type ? null : (
+                    <FragmentView
+                      key={fragmentName}
+                      fragment={fragment}
+                      selections={childSelections}
+                      modifySelections={this._modifyChildSelections}
+                      schema={schema}
+                      styleConfig={this.props.styleConfig}
+                      onCommit={this.props.onCommit}
+                    />
+                  );
+                })
+              : null}
             {Object.keys(fields)
               .sort()
               .map(fieldName => (
@@ -1325,6 +1911,8 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   styleConfig={this.props.styleConfig}
+                  onCommit={this.props.onCommit}
+                  definition={this.props.definition}
                 />
               ))}
             {isInterfaceType(type) || isUnionType(type)
@@ -1344,6 +1932,8 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                       makeDefaultArg={this.props.makeDefaultArg}
                       onRunOperation={this.props.onRunOperation}
                       styleConfig={this.props.styleConfig}
+                      onCommit={this.props.onCommit}
+                      definition={this.props.definition}
                     />
                   ))
               : null}
@@ -1421,6 +2011,18 @@ const defaultStyles = {
     maxWidth: 'none',
   },
 
+  actionButtonStyle: {
+    padding: '0px',
+    backgroundColor: 'white',
+    border: 'none',
+    margin: '0px',
+    maxWidth: 'none',
+    height: '15px',
+    width: '15px',
+    display: 'inline-block',
+    fontSize: 'smaller',
+  },
+
   explorerActionsStyle: {
     margin: '4px -8px -8px',
     paddingLeft: '8px',
@@ -1437,14 +2039,18 @@ type RootViewProps = {|
   schema: GraphQLSchema,
   isLast: boolean,
   fields: ?GraphQLFieldMap<any, any>,
-  operation: OperationType,
+  operationKind: OperationType,
   name: ?string,
   onTypeName: ?string,
   definition: FragmentDefinitionNode | OperationDefinitionNode,
   onEdit: (
     operationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode,
-  ) => void,
+    commit: boolean,
+  ) => DocumentNode,
+  onCommit: (document: DocumentNode) => void,
   onOperationRename: (query: string) => void,
+  onOperationDestroy: () => void,
+  onOperationClone: () => void,
   onRunOperation: (name: ?string) => void,
   onMount: (rootViewElId: string) => void,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
@@ -1460,7 +2066,10 @@ class RootView extends React.PureComponent<
   state = {newOperationType: 'query', displayTitleActions: false};
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
 
-  _modifySelections = (selections: Selections) => {
+  _modifySelections = (
+    selections: Selections,
+    commit: boolean,
+  ): DocumentNode => {
     let operationDef: FragmentDefinitionNode | OperationDefinitionNode = this
       .props.definition;
 
@@ -1509,7 +2118,7 @@ class RootView extends React.PureComponent<
       };
     }
 
-    this.props.onEdit(newOperationDef);
+    return this.props.onEdit(newOperationDef, commit);
   };
 
   _onOperationRename = event =>
@@ -1522,8 +2131,8 @@ class RootView extends React.PureComponent<
   };
 
   _rootViewElId = () => {
-    const {operation, name} = this.props;
-    const rootViewElId = `${operation}-${name || 'unknown'}`;
+    const {operationKind, name} = this.props;
+    const rootViewElId = `${operationKind}-${name || 'unknown'}`;
     return rootViewElId;
   };
 
@@ -1535,7 +2144,7 @@ class RootView extends React.PureComponent<
 
   render() {
     const {
-      operation,
+      operationKind,
       definition,
       schema,
       getDefaultFieldNames,
@@ -1548,7 +2157,7 @@ class RootView extends React.PureComponent<
     const selections = operationDef.selectionSet.selections;
 
     const operationDisplayName =
-      this.props.name || `${capitalize(operation)} Name`;
+      this.props.name || `${capitalize(operationKind)} Name`;
 
     return (
       <div
@@ -1564,7 +2173,7 @@ class RootView extends React.PureComponent<
           className="graphiql-operation-title-bar"
           onMouseEnter={() => this.setState({displayTitleActions: true})}
           onMouseLeave={() => this.setState({displayTitleActions: false})}>
-          {operation}{' '}
+          {operationKind}{' '}
           <span style={{color: styleConfig.colors.def}}>
             <input
               style={{
@@ -1575,7 +2184,7 @@ class RootView extends React.PureComponent<
                 width: `${Math.max(4, operationDisplayName.length)}ch`,
               }}
               autoComplete="false"
-              placeholder={`${capitalize(operation)} Name`}
+              placeholder={`${capitalize(operationKind)} Name`}
               value={this.props.name}
               onKeyDown={this._handlePotentialRun}
               onChange={this._onOperationRename}
@@ -1596,11 +2205,7 @@ class RootView extends React.PureComponent<
                 className="toolbar-button"
                 onClick={() => this.props.onOperationDestroy()}
                 style={{
-                  ...styleConfig.styles.buttonStyle,
-                  height: '15px',
-                  width: '15px',
-                  display: 'inline-block',
-                  fontSize: 'smaller',
+                  ...styleConfig.styles.actionButtonStyle,
                 }}>
                 <span>{'\u2715'}</span>
               </button>
@@ -1609,13 +2214,9 @@ class RootView extends React.PureComponent<
                 className="toolbar-button"
                 onClick={() => this.props.onOperationClone()}
                 style={{
-                  ...styleConfig.styles.buttonStyle,
-                  height: '15px',
-                  width: '15px',
-                  display: 'inline-block',
-                  fontSize: 'smaller',
+                  ...styleConfig.styles.actionButtonStyle,
                 }}>
-                <span>{'c'}</span>
+                <span>{'⎘'}</span>
               </button>
             </>
           ) : (
@@ -1637,6 +2238,8 @@ class RootView extends React.PureComponent<
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
               styleConfig={this.props.styleConfig}
+              onCommit={this.props.onCommit}
+              definition={this.props.definition}
             />
           ))}
       </div>
@@ -1799,8 +2402,16 @@ class Explorer extends React.PureComponent<Props, State> {
       };
     };
 
-    const cloneOperation = targetOperation => {
-      const kind = targetOperation.operation;
+    const cloneOperation = (
+      targetOperation: OperationDefinitionNode | FragmentDefinitionNode,
+    ) => {
+      let kind;
+      if (targetOperation.kind === 'FragmentDefinition') {
+        kind = 'fragment';
+      } else {
+        kind = targetOperation.operation;
+      }
+
       const newOperationName =
         ((targetOperation.name && targetOperation.name.value) || '') + 'Copy';
 
@@ -1996,6 +2607,23 @@ class Explorer extends React.PureComponent<Props, State> {
         </div>
       );
 
+    const availableFragments = relevantOperations.reduce((acc, operation) => {
+      if (operation.kind === 'FragmentDefinition') {
+        const fragmentTypeName = operation.typeCondition.name.value;
+        const existingFragmentsForType = acc[fragmentTypeName] || [];
+        const newFragmentsForType = [
+          ...existingFragmentsForType,
+          operation,
+        ].sort((a, b) => a.name.value.localeCompare(b.name.value));
+        return {
+          ...acc,
+          [fragmentTypeName]: newFragmentsForType,
+        };
+      }
+
+      return acc;
+    }, {});
+
     const attribution = this.props.showAttribution ? <Attribution /> : null;
 
     return (
@@ -2075,45 +2703,65 @@ class Explorer extends React.PureComponent<Props, State> {
                   ? operation.typeCondition.name.value
                   : null;
 
+              const onCommit = (parsedDocument: DocumentNode) => {
+                const textualNewDocument = print(parsedDocument);
+
+                this.props.onEdit(textualNewDocument);
+              };
+
               return (
-                <RootView
+                <AvailableFragmentsContext.Provider
                   key={index}
-                  isLast={index === relevantOperations.length - 1}
-                  fields={fields}
-                  operation={operationKind}
-                  name={operationName}
-                  definition={operation}
-                  onOperationRename={onOperationRename}
-                  onOperationDestroy={onOperationDestroy}
-                  onOperationClone={onOperationClone}
-                  onTypeName={fragmentTypeName}
-                  onMount={this._handleRootViewMount}
-                  onEdit={newDefinition => {
-                    const newQuery = {
-                      ...parsedQuery,
-                      definitions: parsedQuery.definitions.map(
-                        existingDefinition =>
-                          existingDefinition === operation
-                            ? newDefinition
-                            : existingDefinition,
-                      ),
-                    };
+                  value={availableFragments}>
+                  <RootView
+                    isLast={index === relevantOperations.length - 1}
+                    fields={fields}
+                    operationKind={operationKind}
+                    name={operationName}
+                    definition={operation}
+                    onOperationRename={onOperationRename}
+                    onOperationDestroy={onOperationDestroy}
+                    onOperationClone={onOperationClone}
+                    onTypeName={fragmentTypeName}
+                    onMount={this._handleRootViewMount}
+                    onCommit={onCommit}
+                    onEdit={(
+                      newDefinition: ?DefinitionNode,
+                      commit: ?boolean,
+                    ): DocumentNode => {
+                      if (!!newDefinition) {
+                        const newQuery: DocumentNode = {
+                          ...parsedQuery,
+                          definitions: parsedQuery.definitions.map(
+                            existingDefinition =>
+                              existingDefinition === operation
+                                ? newDefinition
+                                : existingDefinition,
+                          ),
+                        };
 
-                    const textualNewQuery = print(newQuery);
-
-                    this.props.onEdit(textualNewQuery);
-                  }}
-                  schema={schema}
-                  getDefaultFieldNames={getDefaultFieldNames}
-                  getDefaultScalarArgValue={getDefaultScalarArgValue}
-                  makeDefaultArg={makeDefaultArg}
-                  onRunOperation={() => {
-                    if (!!this.props.onRunOperation) {
-                      this.props.onRunOperation(operationName);
-                    }
-                  }}
-                  styleConfig={styleConfig}
-                />
+                        if (commit) {
+                          onCommit(newQuery);
+                          return newQuery;
+                        } else {
+                          return newQuery;
+                        }
+                      } else {
+                        return parsedQuery;
+                      }
+                    }}
+                    schema={schema}
+                    getDefaultFieldNames={getDefaultFieldNames}
+                    getDefaultScalarArgValue={getDefaultScalarArgValue}
+                    makeDefaultArg={makeDefaultArg}
+                    onRunOperation={() => {
+                      if (!!this.props.onRunOperation) {
+                        this.props.onRunOperation(operationName);
+                      }
+                    }}
+                    styleConfig={styleConfig}
+                  />
+                </AvailableFragmentsContext.Provider>
               );
             },
           )}
