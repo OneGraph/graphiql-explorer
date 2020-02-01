@@ -723,11 +723,7 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
 }
 
 class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
-  render() {
-    const {argValue, arg, styleConfig} = this.props;
-    /* TODO: handle List types*/
-    const argType = unwrapInputType(arg.type);
-
+  defaultArgViewHandler(arg, argType, argValue, styleConfig) {
     let input = null;
     if (argValue) {
       if (argValue.kind === 'Variable') {
@@ -823,6 +819,15 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         }
       }
     }
+    return input;
+  }
+
+  render() {
+    const {argValue, arg, styleConfig, scalarInputsPluginManager} = this.props;
+    /* TODO: handle List types*/
+    const argType = unwrapInputType(arg.type);
+    const input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
+
 
     return (
       <div
