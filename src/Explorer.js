@@ -51,6 +51,8 @@ import type {
   ValueNode,
 } from 'graphql';
 
+import ScalarInputPluginManager from './plugins/graphql-scalar-inputs'
+
 type Field = GraphQLField<any, any>;
 
 type GetDefaultScalarArgValue = (
@@ -635,6 +637,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
       />
     );
   }
@@ -826,8 +829,11 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     const {argValue, arg, styleConfig, scalarInputsPluginManager} = this.props;
     /* TODO: handle List types*/
     const argType = unwrapInputType(arg.type);
-    const input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
 
+    let input = scalarInputsPluginManager.process(arg, styleConfig, this.props.setArgValue)
+    if (!input) {
+      input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
+    }
 
     return (
       <div
@@ -1295,6 +1301,7 @@ class FieldView extends React.PureComponent<FieldViewProps, {}> {
                 makeDefaultArg={this.props.makeDefaultArg}
                 onRunOperation={this.props.onRunOperation}
                 styleConfig={this.props.styleConfig}
+                scalarInputsPluginManager={this.props.scalarInputsPluginManager}
               />
             ))}
           </div>
@@ -1603,6 +1610,7 @@ class RootView extends React.PureComponent<RootViewProps, {}> {
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
               styleConfig={this.props.styleConfig}
+              scalarInputsPluginManager={this.props.scalarInputsPluginManager}
             />
           ))}
       </div>
@@ -1646,11 +1654,16 @@ class Explorer extends React.PureComponent<Props, State> {
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
   };
 
-  state = {
-    newOperationType: 'query',
-    operation: null,
-    operationToScrollTo: null,
-  };
+  constructor(props) {
+    super(props);
+    this.scalarInputsPluginManager = new ScalarInputPluginManager(this.props.graphqlCustomScalarPlugins);
+    // should set initial state in object constructor
+    this.state = {
+      newOperationType: 'query',
+      operation: null,
+      operationToScrollTo: null,
+    };
+  }
 
   _ref: ?any;
   _resetScroll = () => {
@@ -2025,6 +2038,7 @@ class Explorer extends React.PureComponent<Props, State> {
                     }
                   }}
                   styleConfig={styleConfig}
+                  scalarInputsPluginManager={this.scalarInputsPluginManager}
                 />
               );
             },
@@ -2071,6 +2085,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
   static defaultProps = {
     width: 320,
     title: 'Explorer',
+    graphqlCustomScalarPlugins: [],
   };
 
   render() {
