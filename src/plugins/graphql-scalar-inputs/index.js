@@ -4,7 +4,6 @@ const bundledPlugins = [DatePlugin];
 
 class ScalarInputPluginManager {
   constructor(plugins = [], enableBundledPlugins = false) {
-    this.isEnabled = enableBundledPlugins;
     let enabledPlugins = plugins;
     if (enableBundledPlugins) {
       // ensure bundled plugins are the last plugins checked.
@@ -13,11 +12,7 @@ class ScalarInputPluginManager {
     this.plugins = enabledPlugins;
   }
 
-  process(arg, styleConfig, onChangeHandler) {
-    if (!this.isEnabled) {
-      return null;
-    }
-    
+  process(arg, styleConfig, onChangeHandler) {    
     // plugins are provided in order, the first matching plugin will be used.
     const handler = this.plugins.find(plugin => plugin.canProcess(arg));
     if (handler) {
