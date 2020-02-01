@@ -3,12 +3,21 @@ import DatePlugin from './bundled/DateInput'
 const bundledPlugins = [DatePlugin];
 
 class ScalarInputPluginManager {
-  constructor(plugins = []) {
-    // ensure bundled plugins are the last plugins checked.
-    this.plugins = [...plugins, ...bundledPlugins];
+  constructor(plugins = [], enableBundledPlugins = false) {
+    this.isEnabled = enableBundledPlugins;
+    let enabledPlugins = plugins;
+    if (enableBundledPlugins) {
+      // ensure bundled plugins are the last plugins checked.
+      enabledPlugins.push(...bundledPlugins);
+    }
+    this.plugins = enabledPlugins;
   }
 
   process(arg, styleConfig, onChangeHandler) {
+    if (!this.isEnabled) {
+      return null;
+    }
+    
     // plugins are provided in order, the first matching plugin will be used.
     const handler = this.plugins.find(plugin => plugin.canProcess(arg));
     if (handler) {

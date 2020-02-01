@@ -1656,7 +1656,8 @@ class Explorer extends React.PureComponent<Props, State> {
 
   constructor(props) {
     super(props);
-    this.scalarInputsPluginManager = new ScalarInputPluginManager(this.props.graphqlCustomScalarPlugins);
+    const { graphqlCustomScalarPlugins, enableBundledPlugins } = this.props;
+    this.scalarInputsPluginManager = new ScalarInputPluginManager(graphqlCustomScalarPlugins, enableBundledPlugins);
     // should set initial state in object constructor
     this.state = {
       newOperationType: 'query',
@@ -2086,6 +2087,7 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
     width: 320,
     title: 'Explorer',
     graphqlCustomScalarPlugins: [],
+    enableBundledPlugins: false,
   };
 
   render() {
