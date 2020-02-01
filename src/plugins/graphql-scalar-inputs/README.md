@@ -16,3 +16,9 @@ export default {
   name: "InputHandlerName"
 }
 ```
+
+# Examples
+
+See the bundled `DateInput` plugin.
+
+When instantiating the GraphiQL Explorer, pass the list of desired plugins as the prop `graphqlCustomScalarPlugins`.
