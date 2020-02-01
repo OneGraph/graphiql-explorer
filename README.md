@@ -140,3 +140,8 @@ Example styles map:
   }}
 />
 ```
+
+
+## Handling Custom GraphQL Scalars
+
+Custom GraphQL Scalars can be provided support for using the [GraphQL Scalar Input Plugins](./src/plugins/graphql-scalar-inputs/README.md).
