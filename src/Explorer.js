@@ -638,6 +638,8 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
         scalarInputsPluginManager={this.props.scalarInputsPluginManager}
+        modifyArguments={this.props.modifyArguments}
+        selection={this.props.selection}
       />
     );
   }
@@ -830,7 +832,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     /* TODO: handle List types*/
     const argType = unwrapInputType(arg.type);
 
-    let input = scalarInputsPluginManager && scalarInputsPluginManager.process(arg, styleConfig, this.props.setArgValue)
+    let input = scalarInputsPluginManager && scalarInputsPluginManager.process(this.props)
     let usedDefaultRender = !input;
     if (usedDefaultRender) {
       input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);

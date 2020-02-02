@@ -12,11 +12,11 @@ class ScalarInputPluginManager {
     this.plugins = enabledPlugins;
   }
 
-  process(arg, styleConfig, onChangeHandler) {    
+  process(props) {
     // plugins are provided in order, the first matching plugin will be used.
-    const handler = this.plugins.find(plugin => plugin.canProcess(arg));
+    const handler = this.plugins.find(plugin => plugin.canProcess(props.arg));
     if (handler) {
-      return handler.render(arg, styleConfig, onChangeHandler);
+      return handler.render(props);
     }
     return null;
   }

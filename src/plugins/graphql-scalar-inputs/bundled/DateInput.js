@@ -4,12 +4,12 @@ function canProcess(arg) {
   return arg && arg.type && arg.type.name ===  'Date';
 }
 
-function render(arg, styleConfig, onChangeHandler) {
+function render(props) {
   return (
     <input
       type="date"
-      value={arg.defaultValue}
-      onChange={onChangeHandler}
+      value={props.arg.defaultValue}
+      onChange={props.setArgValue}
     />
   );
 }
