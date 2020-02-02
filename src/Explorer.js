@@ -830,7 +830,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     /* TODO: handle List types*/
     const argType = unwrapInputType(arg.type);
 
-    let input = scalarInputsPluginManager.process(arg, styleConfig, this.props.setArgValue)
+    let input = scalarInputsPluginManager && scalarInputsPluginManager.process(arg, styleConfig, this.props.setArgValue)
     if (!input) {
       input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
     }
