@@ -114,8 +114,8 @@ class ComplexNumberHandler extends React.Component {
           step='any'
           disabled={!selectedComplexArg}
         />
-        &plusmn;
-      <input
+        +
+        <input
           type="number"
           defaultValue={imPart}
           onChange={e => this.handleChangeEvent(e, 'imaginary')}
