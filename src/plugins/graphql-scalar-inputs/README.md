@@ -5,7 +5,7 @@ These allow custom handling of custom GraphQL scalars.
 
 # Definition
 
-A GraphQL Scalar Input pluging implements the following function signatures:
+A GraphQL Scalar Input plugin implements the following function signatures:
 ```js
 function canProcess(arg): boolean
 
