@@ -112,6 +112,7 @@ class ComplexNumberHandler extends React.Component {
           onChange={e => this.handleChangeEvent(e, 'real')}
           style={{ maxWidth: '50px', margin: '5px' }}
           step='any'
+          disabled={!selectedComplexArg}
         />
         &plusmn;
       <input
@@ -120,6 +121,7 @@ class ComplexNumberHandler extends React.Component {
           onChange={e => this.handleChangeEvent(e, 'imaginary')}
           style={{ maxWidth: '50px', margin: '5px' }}
           step='any'
+          disabled={!selectedComplexArg}
         /> i
     </span>);
   }
