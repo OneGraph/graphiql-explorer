@@ -43,7 +43,7 @@ const anotherThirdPartyHandler = require('<graphiql-explorer-example-custom-scal
 const customISODateTypeHandler = {
   render: (arg, styleConfig, onChangeHandler) => (
     <input
-      type="date"
+      type="datetime-local"
       value={arg.defaultValue}
       onChange={event => {
         // Set the date placed into the query to be an ISO dateTime string
@@ -53,7 +53,7 @@ const customISODateTypeHandler = {
       }}
     />
   ),
-  canProcess: (arg) => arg && arg.type && arg.type.name ===  'Date',
+  canProcess: (arg) => arg && arg.type && arg.type.name ===  'DateTime',
   name: 'customDate',
 }
 
