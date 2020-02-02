@@ -61,12 +61,10 @@ The `ComplexNumber` is defined as:
 
 ```js
 class ComplexNumberHandler extends React.Component {
-  static canProcess = (arg) => arg && arg.type && arg.type.name === 'ComplexNumber';
+  static canProcess = (arg) => arg && arg.type && arg.type.name === 'ComplexNumberInput';
 
   updateComponent(arg, value, targetName) {
-    // Actually need to update the appropriate child node
     const updatedFields = arg.value.fields.map(childArg => {
-      // targetName is either 'real' or 'imaginary', skip the other children we don't want to change
       if (childArg.name.value !== targetName) {
         return childArg;
       }
@@ -81,47 +79,58 @@ class ComplexNumberHandler extends React.Component {
   }
 
   handleChangeEvent(event, complexComponent) {
-    const { arg, selection, modifyArguments } = this.props;
-    return modifyArguments(
-      (selection.arguments || []).map(originalArg => {
-        if (originalArg.name.value !== arg.name) {
-          return originalArg;
-        }
+    const { arg, selection, modifyArguments, argValue } = this.props;
+    return modifyArguments(selection.arguments.map(originalArg => {
+      if (originalArg.name.value !== arg.name) {
+        return originalArg;
+      }
 
-        return this.updateComponent(originalArg, event.target.value, complexComponent);
-      })
-    );
+      return this.updateComponent(originalArg, event.target.value, complexComponent);
+    }));
+  }
+
+  getValue(complexArg, complexComponent) {
+    const childNode = complexArg && complexArg.value.fields.find(childArg => childArg.name.value === complexComponent)
+
+    if (complexArg && childNode) {
+      return childNode.value.value;
+    }
+
+    return '';
   }
 
   render() {
+    const { selection, arg } = this.props;
+    const selectedComplexArg = (selection.arguments || []).find(a => a.name.value === arg.name);
+    const rePart = this.getValue(selectedComplexArg, 'real');
+    const imPart = this.getValue(selectedComplexArg, 'imaginary');
     return (
       <span>
         <input
           type="number"
+          value={rePart}
           onChange={e => this.handleChangeEvent(e, 'real')}
-          style={{ maxWidth: '35px', margin: '5px' }}
-          step='0.1'
+          style={{ maxWidth: '50px', margin: '5px' }}
+          step='any'
         />
         &plusmn;
       <input
           type="number"
+          defaultValue={imPart}
           onChange={e => this.handleChangeEvent(e, 'imaginary')}
-          style={{ maxWidth: '35px', margin: '5px' }}
-          step='0.1'
+          style={{ maxWidth: '50px', margin: '5px' }}
+          step='any'
         /> i
     </span>);
   }
 }
-
 
 export default {
   canProcess: ComplexNumberHandler.canProcess,
   name: 'Complex Number',
   render: props => (
     <ComplexNumberHandler
-      arg={props.arg}
-      selection={props.selection}
-      modifyArguments={props.modifyArguments}
+          {...props}
     />),
 }
 ```
