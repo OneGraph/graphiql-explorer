@@ -19,26 +19,6 @@ const name: String!
 
 By default, these plugins are disabled. To enable the bundled plugins, instantiate the explorer with the prop `enableBundledPlugins` set to `true`.
 
-## Example adding custom plugins
-
-Any number of plugins can be added, and can override existing bundled plugins.
-
-Plugins are checked in the order they are given in the `graphqlCustomScalarPlugins` list. The first plugin with a `canProcess` value that returns `true` will be used. Bundled plugins are always checked last, after all customised plugins.
-
-```js
-import ComplexNumberHandler from 'path/to/module';
-const configuredPlugins = [ComplexNumberHandler];
-
-// Then later, in your render method where you create the explorer...
-<GraphiQLExplorer
-  ...
-  graphqlCustomScalarPlugins={configuredPlugins}
-/>
-```
-> To see examples of instantiating the explorer, see the [example repo](https://github.com/OneGraph/graphiql-explorer-example).
-
-For an example implementation of a third-party plugin, see the [Complex Numbers Example]('#complex-numbers).
-
 ## Examples
 
 ### Date Input
@@ -51,15 +31,35 @@ When instantiating the GraphiQL Explorer, pass the list of desired plugins as th
 
 This examples shows a plugin that can be used for more complicated input types which should form objects.
 
-The `ComplexNumber` is defined as:
-```js
-{
+For this example, consider the following schema:
+```
+type ComplexNumber {
   real: Float!
   imaginary: Float!
 }
+
+input ComplexNumberInput {
+  real: Float!
+  imaginary: Float!
+}
+
+type Query {
+  complexCalculations(z: ComplexNumberInput): ComplexResponse!
+}
+
+type ComplexResponse {
+  real: Float!
+  imaginary: Float!
+  length: Float!
+  complexConjugate: ComplexNumber!
+}
 ```
 
+The custom object type can be handled with a custom plugin. The file `ComplexNumberHandler.js` shows an example implementation for the `ComplexNumberInput`.
+
 ```js
+import * as React from "react";
+
 class ComplexNumberHandler extends React.Component {
   static canProcess = (arg) => arg && arg.type && arg.type.name === 'ComplexNumberInput';
 
@@ -136,3 +136,19 @@ export default {
     />),
 }
 ```
+To add the custom plugin, pass it to the GraphiQLExplorer on instantiation.
+```js
+import ComplexNumberHandler from './ComplexNumberHandler';
+const configuredPlugins = [ComplexNumberHandler];
+
+// Then later, in your render method where you create the explorer...
+<GraphiQLExplorer
+  ...
+  graphqlCustomScalarPlugins={configuredPlugins}
+/>
+```
+> To see examples of instantiating the explorer, see the [example repo](https://github.com/OneGraph/graphiql-explorer-example).
+
+Any number of plugins can be added, and can override existing bundled plugins.
+
+Plugins are checked in the order they are given in the `graphqlCustomScalarPlugins` list. The first plugin with a `canProcess` value that returns `true` will be used. Bundled plugins are always checked last, after all customised plugins.
