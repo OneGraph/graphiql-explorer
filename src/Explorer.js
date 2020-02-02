@@ -831,7 +831,8 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
     const argType = unwrapInputType(arg.type);
 
     let input = scalarInputsPluginManager && scalarInputsPluginManager.process(arg, styleConfig, this.props.setArgValue)
-    if (!input) {
+    let usedDefaultRender = !input;
+    if (usedDefaultRender) {
       input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
     }
 
@@ -848,7 +849,7 @@ class AbstractArgView extends React.PureComponent<AbstractArgViewProps, {}> {
         <span
           style={{cursor: 'pointer'}}
           onClick={argValue ? this.props.removeArg : this.props.addArg}>
-          {isInputObjectType(argType) ? (
+          {usedDefaultRender && isInputObjectType(argType) ? (
             <span>
               {!!argValue
                 ? this.props.styleConfig.arrowOpen
