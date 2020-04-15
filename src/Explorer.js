@@ -2202,7 +2202,7 @@ class RootView extends React.PureComponent<
             ''
           )}
           {!!this.state.displayTitleActions ? (
-            <>
+            <React.Fragment>
               <button
                 type="submit"
                 className="toolbar-button"
@@ -2221,7 +2221,7 @@ class RootView extends React.PureComponent<
                 }}>
                 <span>{'⎘'}</span>
               </button>
-            </>
+            </React.Fragment>
           ) : (
             ''
           )}
