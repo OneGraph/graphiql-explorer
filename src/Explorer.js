@@ -743,7 +743,12 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
 }
 
 function isRunShortcut(event) {
-  return event.metaKey && event.key === 'Enter';
+  return event.ctrlKey && event.key === 'Enter';
+}
+
+function canRunOperation(operationName) {
+  // it does not make sense to try to execute a fragment
+  return operationName !== 'FragmentDefinition';
 }
 
 type ScalarInputProps = {|
@@ -799,11 +804,6 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
             this._ref = ref;
           }}
           type="text"
-          onKeyDown={event => {
-            if (isRunShortcut(event)) {
-              this.props.onRunOperation(event);
-            }
-          }}
           onChange={this._handleChange}
           value={value}
         />
@@ -2128,7 +2128,7 @@ class RootView extends React.PureComponent<
     this.props.onOperationRename(event.target.value);
 
   _handlePotentialRun = event => {
-    if (isRunShortcut(event)) {
+    if (isRunShortcut(event) && canRunOperation(this.props.definition.kind)) {
       this.props.onRunOperation(this.props.name);
     }
   };
@@ -2165,6 +2165,8 @@ class RootView extends React.PureComponent<
     return (
       <div
         id={rootViewElId}
+        tabIndex="0"
+        onKeyDown={this._handlePotentialRun}
         style={{
           // The actions bar has its own top border
           borderBottom: this.props.isLast ? 'none' : '1px solid #d6d6d6',
