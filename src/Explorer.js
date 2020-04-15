@@ -1165,7 +1165,8 @@ class AbstractArgView extends React.PureComponent<
           userSelect: 'none',
         }}
         data-arg-name={arg.name}
-        data-arg-type={argType.name}>
+        data-arg-type={argType.name}
+        className={`graphiql-explorer-${arg.name}`}>
         <span
           style={{cursor: 'pointer'}}
           onClick={event => {
@@ -1423,7 +1424,7 @@ class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
     const {styleConfig} = this.props;
     const selection = this._getSelection();
     return (
-      <div>
+      <div className={`graphiql-explorer-${this.props.fragment.name.value}`}>
         <span
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
@@ -1700,7 +1701,7 @@ class FieldView extends React.PureComponent<
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
-    let className = 'graphiql-explorer-node';
+    let className = `graphiql-explorer-node graphiql-explorer-${field.name}`;
 
     if (field.isDeprecated) {
       className += ' graphiql-explorer-deprecated';
@@ -1843,7 +1844,9 @@ class FieldView extends React.PureComponent<
           )}
         </span>
         {selection && args.length ? (
-          <div style={{marginLeft: 16}}>
+          <div
+            style={{marginLeft: 16}}
+            className="graphiql-explorer-graphql-arguments">
             {args.map(arg => (
               <ArgView
                 key={arg.name}
@@ -1875,7 +1878,7 @@ class FieldView extends React.PureComponent<
           : []
         : [];
       return (
-        <div>
+        <div className={`graphiql-explorer-${field.name}`}>
           {node}
           <div style={{marginLeft: 16}}>
             {!!applicableFragments
