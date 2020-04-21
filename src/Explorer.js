@@ -2078,7 +2078,7 @@ type RootViewProps = {|
   schema: GraphQLSchema,
   isLast: boolean,
   fields: ?GraphQLFieldMap<any, any>,
-  operationKind: OperationType,
+  operationType: OperationType,
   name: ?string,
   onTypeName: ?string,
   definition: FragmentDefinitionNode | OperationDefinitionNode,
@@ -2171,8 +2171,8 @@ class RootView extends React.PureComponent<
   };
 
   _rootViewElId = () => {
-    const {operationKind, name} = this.props;
-    const rootViewElId = `${operationKind}-${name || 'unknown'}`;
+    const {operationType, name} = this.props;
+    const rootViewElId = `${operationType}-${name || 'unknown'}`;
     return rootViewElId;
   };
 
@@ -2184,7 +2184,7 @@ class RootView extends React.PureComponent<
 
   render() {
     const {
-      operationKind,
+      operationType,
       definition,
       schema,
       getDefaultFieldNames,
@@ -2197,7 +2197,7 @@ class RootView extends React.PureComponent<
     const selections = operationDef.selectionSet.selections;
 
     const operationDisplayName =
-      this.props.name || `${capitalize(operationKind)} Name`;
+      this.props.name || `${capitalize(operationType)} Name`;
 
     return (
       <div
@@ -2215,7 +2215,7 @@ class RootView extends React.PureComponent<
           className="graphiql-operation-title-bar"
           onMouseEnter={() => this.setState({displayTitleActions: true})}
           onMouseLeave={() => this.setState({displayTitleActions: false})}>
-          {operationKind}{' '}
+          {operationType}{' '}
           <span style={{color: styleConfig.colors.def}}>
             <input
               style={{
@@ -2226,7 +2226,7 @@ class RootView extends React.PureComponent<
                 width: `${Math.max(4, operationDisplayName.length)}ch`,
               }}
               autoComplete="false"
-              placeholder={`${capitalize(operationKind)} Name`}
+              placeholder={`${capitalize(operationType)} Name`}
               value={this.props.name}
               onKeyDown={this._handlePotentialRun}
               onChange={this._onOperationRename}
@@ -2703,7 +2703,7 @@ class Explorer extends React.PureComponent<Props, State> {
               const operationName =
                 operation && operation.name && operation.name.value;
 
-              const operationKind =
+              const operationType =
                 operation.kind === 'FragmentDefinition'
                   ? 'fragment'
                   : (operation && operation.operation) || 'query';
@@ -2734,11 +2734,11 @@ class Explorer extends React.PureComponent<Props, State> {
                   : null;
 
               const fields =
-                operationKind === 'query'
+                operationType === 'query'
                   ? queryFields
-                  : operationKind === 'mutation'
+                  : operationType === 'mutation'
                   ? mutationFields
-                  : operationKind === 'subscription'
+                  : operationType === 'subscription'
                   ? subscriptionFields
                   : operation.kind === 'FragmentDefinition'
                   ? fragmentFields
@@ -2759,7 +2759,7 @@ class Explorer extends React.PureComponent<Props, State> {
                 <RootView
                   isLast={index === relevantOperations.length - 1}
                   fields={fields}
-                  operationKind={operationKind}
+                  operationType={operationType}
                   name={operationName}
                   definition={operation}
                   onOperationRename={onOperationRename}
