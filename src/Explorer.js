@@ -56,8 +56,6 @@ import type {
   ValueNode,
 } from 'graphql';
 
-const AvailableFragmentsContext = React.createContext({});
-
 type Field = GraphQLField<any, any>;
 
 type GetDefaultScalarArgValue = (
@@ -139,6 +137,8 @@ type State = {|
 |};
 
 type Selections = $ReadOnlyArray<SelectionNode>;
+
+type AvailableFragments = {[key: string]: FragmentDefinitionNode};
 
 function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -348,7 +348,7 @@ type InputArgViewProps = {|
   modifyFields: (
     fields: $ReadOnlyArray<ObjectFieldNode>,
     commit: boolean,
-  ) => ?DocumentNode,
+  ) => DocumentNode | null,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
@@ -421,14 +421,21 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     }
   };
 
-  _setArgValue = (event, commit: boolean) => {
-    const {selection} = this.props;
+  _setArgValue = (event, options: ?{commit: boolean}) => {
+    let settingToNull = false;
     let settingToVariable = false;
+    let settingToLiteralValue = false;
     try {
       if (event.kind === 'VariableDefinition') {
         settingToVariable = true;
+      } else if (event === null || typeof event === 'undefined') {
+        settingToNull = true;
+      } else if (typeof event.kind === 'string') {
+        settingToLiteralValue = true;
       }
     } catch (e) {}
+
+    const {selection} = this.props;
 
     const argSelection = this._getArgSelection();
 
@@ -438,8 +445,17 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
     }
     const argType = unwrapInputType(this.props.arg.type);
 
-    if (!isLeafType(argType) && !settingToVariable) {
-      console.warn('Unable to handle non leaf types in setArgValue');
+    const handleable =
+      isLeafType(argType) ||
+      settingToVariable ||
+      settingToNull ||
+      settingToLiteralValue;
+
+    if (!handleable) {
+      console.warn(
+        'Unable to handle non leaf types in InputArgView.setArgValue',
+        event,
+      );
       return;
     }
     let targetValue: string | VariableDefinitionNode;
@@ -473,7 +489,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
 
         return newField;
       }),
-      commit,
+      options,
     );
 
     return newDoc;
@@ -527,7 +543,7 @@ type ArgViewProps = {|
   modifyArguments: (
     argumentNodes: $ReadOnlyArray<ArgumentNode>,
     commit: boolean,
-  ) => ?DocumentNode,
+  ) => DocumentNode | null,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   onRunOperation: void => void,
@@ -576,7 +592,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       arg => arg.name.value === this.props.arg.name,
     );
   };
-  _removeArg = (commit: boolean): ?DocumentNode => {
+  _removeArg = (commit: boolean): DocumentNode | null => {
     const {selection} = this.props;
     const argSelection = this._getArgSelection();
     this._previousArgSelection = argSelection;
@@ -585,7 +601,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       commit,
     );
   };
-  _addArg = (commit: boolean): ?DocumentNode => {
+  _addArg = (commit: boolean): DocumentNode | null => {
     const {
       selection,
       getDefaultScalarArgValue,
@@ -633,7 +649,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
   };
   _setArgValue = (
     event: SyntheticInputEvent<*> | VariableDefinitionNode,
-    commit: boolean,
+    options: ?{commit: boolean},
   ) => {
     let settingToNull = false;
     let settingToVariable = false;
@@ -662,7 +678,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
       settingToLiteralValue;
 
     if (!handleable) {
-      console.warn('Unable to handle non leaf types in setArgValue');
+      console.warn('Unable to handle non leaf types in ArgView._setArgValue');
       return;
     }
 
@@ -690,11 +706,11 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
             }
           : a,
       ),
-      commit,
+      options,
     );
   };
 
-  _setArgFields = (fields, commit: boolean): ?DocumentNode => {
+  _setArgFields = (fields, commit: boolean): DocumentNode | null => {
     const {selection} = this.props;
     const argSelection = this._getArgSelection();
     if (!argSelection) {
@@ -757,7 +773,7 @@ type ScalarInputProps = {|
   setArgValue: (
     SyntheticInputEvent<*> | VariableDefinitionNode,
     commit: boolean,
-  ) => ?DocumentNode,
+  ) => DocumentNode | null,
   onRunOperation: void => void,
   styleConfig: StyleConfig,
 |};
@@ -797,7 +813,7 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
             border: 'none',
             borderBottom: '1px solid #888',
             outline: 'none',
-            width: `${Math.max(1, value.length)}ch`,
+            width: `${Math.max(1, Math.min(15, value.length))}ch`,
             color,
           }}
           ref={ref => {
@@ -820,13 +836,13 @@ type AbstractArgViewProps = {|
   setArgValue: (
     SyntheticInputEvent<*> | VariableDefinitionNode,
     commit: boolean,
-  ) => ?DocumentNode,
+  ) => DocumentNode | null,
   setArgFields: (
     fields: $ReadOnlyArray<ObjectFieldNode>,
     commit: boolean,
-  ) => ?DocumentNode,
-  addArg: (commit: boolean) => ?DocumentNode,
-  removeArg: (commit: boolean) => ?DocumentNode,
+  ) => DocumentNode | null,
+  addArg: (commit: boolean) => DocumentNode | null,
+  removeArg: (commit: boolean) => DocumentNode | null,
   onCommit: (newDoc: DocumentNode) => void,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
@@ -1015,7 +1031,14 @@ class AbstractArgView extends React.PureComponent<
           },
         });
 
-        variable = {...base, defaultValue: cleanedDefaultValue};
+        const isNonNullable = base.type.kind === 'NonNullType';
+
+        // We're going to give the variable definition a default value, so we must make its type nullable
+        const unwrappedBase = isNonNullable
+          ? {...base, type: base.type.type}
+          : base;
+
+        variable = {...unwrappedBase, defaultValue: cleanedDefaultValue};
       } else {
         variable = base;
       }
@@ -1100,7 +1123,9 @@ class AbstractArgView extends React.PureComponent<
 
       const defaultValue = variableDefinition.defaultValue;
 
-      const newDoc: ?DocumentNode = this.props.setArgValue(defaultValue, false);
+      const newDoc: ?DocumentNode = this.props.setArgValue(defaultValue, {
+        commit: false,
+      });
 
       if (newDoc) {
         const targetOperation: ?OperationDefinitionNode = newDoc.definitions.find(
@@ -1156,6 +1181,32 @@ class AbstractArgView extends React.PureComponent<
       }
     };
 
+    const isArgValueVariable = argValue && argValue.kind === 'Variable';
+
+    const variablizeActionButton = !this.state.displayArgActions ? null : (
+      <button
+        type="submit"
+        className="toolbar-button"
+        title={
+          isArgValueVariable
+            ? 'Remove the variable'
+            : 'Extract the current value into a GraphQL variable'
+        }
+        onClick={event => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (isArgValueVariable) {
+            devariablize();
+          } else {
+            variablize();
+          }
+        }}
+        style={styleConfig.styles.actionButtonStyle}>
+        <span style={{color: styleConfig.colors.variable}}>{'$'}</span>
+      </button>
+    );
+
     return (
       <div
         style={{
@@ -1201,28 +1252,10 @@ class AbstractArgView extends React.PureComponent<
             }}
             onMouseLeave={() => this.setState({displayArgActions: false})}>
             {arg.name}
-            {isRequiredArgument(arg) ? '*' : ''}:
-            {!this.state.displayArgActions ? null : (
-              <button
-                type="submit"
-                className="toolbar-button"
-                onClick={event => {
-                  event.preventDefault();
-                  event.stopPropagation();
-
-                  if (argValue && argValue.kind === 'Variable') {
-                    devariablize();
-                  } else {
-                    variablize();
-                  }
-                }}
-                style={styleConfig.styles.actionButtonStyle}>
-                <span style={{color: styleConfig.colors.variable}}>{'$'}</span>
-              </button>
-            )}
-          </span>
-        </span>{' '}
-        {input || <span />}
+            {isRequiredArgument(arg) ? '*' : ''}: {variablizeActionButton}{' '}
+          </span>{' '}
+        </span>
+        {input || <span />}{' '}
       </div>
     );
   }
@@ -1231,7 +1264,10 @@ class AbstractArgView extends React.PureComponent<
 type AbstractViewProps = {|
   implementingType: GraphQLObjectType,
   selections: Selections,
-  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
+  modifySelections: (
+    selections: Selections,
+    ?{commit: boolean},
+  ) => DocumentNode | null,
   schema: GraphQLSchema,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
@@ -1245,35 +1281,31 @@ type AbstractViewProps = {|
 class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   _previousSelection: ?InlineFragmentNode;
   _addFragment = () => {
-    this.props.modifySelections(
-      [
-        ...this.props.selections,
-        this._previousSelection || {
-          kind: 'InlineFragment',
-          typeCondition: {
-            kind: 'NamedType',
-            name: {kind: 'Name', value: this.props.implementingType.name},
-          },
-          selectionSet: {
-            kind: 'SelectionSet',
-            selections: this.props
-              .getDefaultFieldNames(this.props.implementingType)
-              .map(fieldName => ({
-                kind: 'Field',
-                name: {kind: 'Name', value: fieldName},
-              })),
-          },
+    this.props.modifySelections([
+      ...this.props.selections,
+      this._previousSelection || {
+        kind: 'InlineFragment',
+        typeCondition: {
+          kind: 'NamedType',
+          name: {kind: 'Name', value: this.props.implementingType.name},
         },
-      ],
-      true,
-    );
+        selectionSet: {
+          kind: 'SelectionSet',
+          selections: this.props
+            .getDefaultFieldNames(this.props.implementingType)
+            .map(fieldName => ({
+              kind: 'Field',
+              name: {kind: 'Name', value: fieldName},
+            })),
+        },
+      },
+    ]);
   };
   _removeFragment = () => {
     const thisSelection = this._getSelection();
     this._previousSelection = thisSelection;
     this.props.modifySelections(
       this.props.selections.filter(s => s !== thisSelection),
-      true,
     );
   };
   _getSelection = (): ?InlineFragmentNode => {
@@ -1293,8 +1325,8 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
 
   _modifyChildSelections = (
     selections: Selections,
-    commit: boolean,
-  ): ?DocumentNode => {
+    options: ?{commit: boolean},
+  ): DocumentNode | null => {
     const thisSelection = this._getSelection();
     return this.props.modifySelections(
       this.props.selections.map(selection => {
@@ -1314,7 +1346,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         }
         return selection;
       }),
-      commit,
+      options,
     );
   };
 
@@ -1363,6 +1395,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   onCommit={this.props.onCommit}
                   styleConfig={this.props.styleConfig}
                   definition={this.props.definition}
+                  availableFragments={this.props.availableFragments}
                 />
               ))}
           </div>
@@ -1375,7 +1408,10 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
 type FragmentViewProps = {|
   fragment: FragmentDefinitionNode,
   selections: Selections,
-  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
+  modifySelections: (
+    selections: Selections,
+    ?{commit: boolean},
+  ) => DocumentNode | null,
   onCommit: (newDoc: DocumentNode) => void,
   schema: GraphQLSchema,
   styleConfig: StyleConfig,
@@ -1384,16 +1420,13 @@ type FragmentViewProps = {|
 class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
   _previousSelection: ?InlineFragmentNode;
   _addFragment = () => {
-    this.props.modifySelections(
-      [
-        ...this.props.selections,
-        this._previousSelection || {
-          kind: 'FragmentSpread',
-          name: this.props.fragment.name,
-        },
-      ],
-      true,
-    );
+    this.props.modifySelections([
+      ...this.props.selections,
+      this._previousSelection || {
+        kind: 'FragmentSpread',
+        name: this.props.fragment.name,
+      },
+    ]);
   };
   _removeFragment = () => {
     const thisSelection = this._getSelection();
@@ -1406,7 +1439,6 @@ class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
 
         return !isTargetSelection;
       }),
-      true,
     );
   };
   _getSelection = (): ?FragmentSpread => {
@@ -1444,7 +1476,10 @@ class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
 type FieldViewProps = {|
   field: Field,
   selections: Selections,
-  modifySelections: (selections: Selections, commit: boolean) => ?DocumentNode,
+  modifySelections: (
+    selections: Selections,
+    ?{commit: boolean},
+  ) => DocumentNode | null,
   schema: GraphQLSchema,
   getDefaultFieldNames: (type: GraphQLObjectType) => Array<string>,
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
@@ -1453,6 +1488,7 @@ type FieldViewProps = {|
   styleConfig: StyleConfig,
   onCommit: (newDoc: DocumentNode) => void,
   definition: FragmentDefinitionNode | OperationDefinitionNode,
+  availableFragments: AvailableFragments,
 |};
 
 function defaultInputObjectFields(
@@ -1539,7 +1575,6 @@ class FieldView extends React.PureComponent<
   {|displayFieldActions: boolean|},
 > {
   state = {displayFieldActions: false};
-  static contextType = AvailableFragmentsContext;
 
   _previousSelection: ?SelectionNode;
   _addAllFieldsToSelections = rawSubfields => {
@@ -1579,7 +1614,7 @@ class FieldView extends React.PureComponent<
       },
     ];
 
-    this.props.modifySelections(nextSelections, true);
+    this.props.modifySelections(nextSelections);
   };
 
   _addFieldToSelections = rawSubfields => {
@@ -1596,7 +1631,7 @@ class FieldView extends React.PureComponent<
       },
     ];
 
-    this.props.modifySelections(nextSelections, true);
+    this.props.modifySelections(nextSelections);
   };
 
   _handleUpdateSelections = event => {
@@ -1622,7 +1657,6 @@ class FieldView extends React.PureComponent<
       this.props.selections.filter(
         selection => selection !== previousSelection,
       ),
-      true,
     );
   };
   _getSelection = (): ?FieldNode => {
@@ -1641,8 +1675,8 @@ class FieldView extends React.PureComponent<
 
   _setArguments = (
     argumentNodes: $ReadOnlyArray<ArgumentNode>,
-    commit: boolean,
-  ): ?DocumentNode => {
+    options: ?{commit: boolean},
+  ): DocumentNode | null => {
     const selection = this._getSelection();
     if (!selection) {
       console.error('Missing selection when setting arguments', argumentNodes);
@@ -1661,14 +1695,14 @@ class FieldView extends React.PureComponent<
             }
           : s,
       ),
-      commit,
+      options,
     );
   };
 
   _modifyChildSelections = (
     selections: Selections,
-    commit: boolean,
-  ): ?DocumentNode => {
+    options: ?{commit: boolean},
+  ): DocumentNode | null => {
     return this.props.modifySelections(
       this.props.selections.map(selection => {
         if (
@@ -1692,7 +1726,7 @@ class FieldView extends React.PureComponent<
         }
         return selection;
       }),
-      commit,
+      options,
     );
   };
 
@@ -1709,7 +1743,7 @@ class FieldView extends React.PureComponent<
 
     const applicableFragments =
       isObjectType(type) || isInterfaceType(type) || isUnionType(type)
-        ? this.context[type.name]
+        ? this.props.availableFragments[type.name]
         : null;
 
     const node = (
@@ -1763,6 +1797,7 @@ class FieldView extends React.PureComponent<
             <button
               type="submit"
               className="toolbar-button"
+              title="Extract selections into a new reusable fragment"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1839,7 +1874,7 @@ class FieldView extends React.PureComponent<
               style={{
                 ...styleConfig.styles.actionButtonStyle,
               }}>
-              <span>{'?'}</span>
+              <span>{'…'}</span>
             </button>
           )}
         </span>
@@ -1871,7 +1906,7 @@ class FieldView extends React.PureComponent<
       selection &&
       (isObjectType(type) || isInterfaceType(type) || isUnionType(type))
     ) {
-      let fields = isUnionType(type) ? {} : type.getFields();
+      const fields = isUnionType(type) ? {} : type.getFields();
       const childSelections = selection
         ? selection.selectionSet
           ? selection.selectionSet.selections
@@ -1916,6 +1951,7 @@ class FieldView extends React.PureComponent<
                   styleConfig={this.props.styleConfig}
                   onCommit={this.props.onCommit}
                   definition={this.props.definition}
+                  availableFragments={this.props.availableFragments}
                 />
               ))}
             {isInterfaceType(type) || isUnionType(type)
@@ -2060,6 +2096,7 @@ type RootViewProps = {|
   getDefaultScalarArgValue: GetDefaultScalarArgValue,
   makeDefaultArg: ?MakeDefaultArg,
   styleConfig: StyleConfig,
+  availableFragments: AvailableFragments,
 |};
 
 class RootView extends React.PureComponent<
@@ -2071,7 +2108,7 @@ class RootView extends React.PureComponent<
 
   _modifySelections = (
     selections: Selections,
-    commit: boolean,
+    options: ?{commit: boolean},
   ): DocumentNode => {
     let operationDef: FragmentDefinitionNode | OperationDefinitionNode = this
       .props.definition;
@@ -2121,7 +2158,7 @@ class RootView extends React.PureComponent<
       };
     }
 
-    return this.props.onEdit(newOperationDef, commit);
+    return this.props.onEdit(newOperationDef, options);
   };
 
   _onOperationRename = event =>
@@ -2245,6 +2282,7 @@ class RootView extends React.PureComponent<
               styleConfig={this.props.styleConfig}
               onCommit={this.props.onCommit}
               definition={this.props.definition}
+              availableFragments={this.props.availableFragments}
             />
           ))}
       </div>
@@ -2612,22 +2650,25 @@ class Explorer extends React.PureComponent<Props, State> {
         </div>
       );
 
-    const availableFragments = relevantOperations.reduce((acc, operation) => {
-      if (operation.kind === 'FragmentDefinition') {
-        const fragmentTypeName = operation.typeCondition.name.value;
-        const existingFragmentsForType = acc[fragmentTypeName] || [];
-        const newFragmentsForType = [
-          ...existingFragmentsForType,
-          operation,
-        ].sort((a, b) => a.name.value.localeCompare(b.name.value));
-        return {
-          ...acc,
-          [fragmentTypeName]: newFragmentsForType,
-        };
-      }
+    const availableFragments: AvailableFragments = relevantOperations.reduce(
+      (acc, operation) => {
+        if (operation.kind === 'FragmentDefinition') {
+          const fragmentTypeName = operation.typeCondition.name.value;
+          const existingFragmentsForType = acc[fragmentTypeName] || [];
+          const newFragmentsForType = [
+            ...existingFragmentsForType,
+            operation,
+          ].sort((a, b) => a.name.value.localeCompare(b.name.value));
+          return {
+            ...acc,
+            [fragmentTypeName]: newFragmentsForType,
+          };
+        }
 
-      return acc;
-    }, {});
+        return acc;
+      },
+      {},
+    );
 
     const attribution = this.props.showAttribution ? <Attribution /> : null;
 
@@ -2715,58 +2756,65 @@ class Explorer extends React.PureComponent<Props, State> {
               };
 
               return (
-                <AvailableFragmentsContext.Provider
-                  key={index}
-                  value={availableFragments}>
-                  <RootView
-                    isLast={index === relevantOperations.length - 1}
-                    fields={fields}
-                    operationKind={operationKind}
-                    name={operationName}
-                    definition={operation}
-                    onOperationRename={onOperationRename}
-                    onOperationDestroy={onOperationDestroy}
-                    onOperationClone={onOperationClone}
-                    onTypeName={fragmentTypeName}
-                    onMount={this._handleRootViewMount}
-                    onCommit={onCommit}
-                    onEdit={(
-                      newDefinition: ?DefinitionNode,
-                      commit: ?boolean,
-                    ): DocumentNode => {
-                      if (!!newDefinition) {
-                        const newQuery: DocumentNode = {
-                          ...parsedQuery,
-                          definitions: parsedQuery.definitions.map(
-                            existingDefinition =>
-                              existingDefinition === operation
-                                ? newDefinition
-                                : existingDefinition,
-                          ),
-                        };
+                <RootView
+                  isLast={index === relevantOperations.length - 1}
+                  fields={fields}
+                  operationKind={operationKind}
+                  name={operationName}
+                  definition={operation}
+                  onOperationRename={onOperationRename}
+                  onOperationDestroy={onOperationDestroy}
+                  onOperationClone={onOperationClone}
+                  onTypeName={fragmentTypeName}
+                  onMount={this._handleRootViewMount}
+                  onCommit={onCommit}
+                  onEdit={(
+                    newDefinition: ?DefinitionNode,
+                    options: ?{commit: boolean},
+                  ): DocumentNode => {
+                    let commit;
+                    if (
+                      typeof options === 'object' &&
+                      typeof options.commit !== 'undefined'
+                    ) {
+                      commit = options.commit;
+                    } else {
+                      commit = true;
+                    }
 
-                        if (commit) {
-                          onCommit(newQuery);
-                          return newQuery;
-                        } else {
-                          return newQuery;
-                        }
+                    if (!!newDefinition) {
+                      const newQuery: DocumentNode = {
+                        ...parsedQuery,
+                        definitions: parsedQuery.definitions.map(
+                          existingDefinition =>
+                            existingDefinition === operation
+                              ? newDefinition
+                              : existingDefinition,
+                        ),
+                      };
+
+                      if (commit) {
+                        onCommit(newQuery);
+                        return newQuery;
                       } else {
-                        return parsedQuery;
+                        return newQuery;
                       }
-                    }}
-                    schema={schema}
-                    getDefaultFieldNames={getDefaultFieldNames}
-                    getDefaultScalarArgValue={getDefaultScalarArgValue}
-                    makeDefaultArg={makeDefaultArg}
-                    onRunOperation={() => {
-                      if (!!this.props.onRunOperation) {
-                        this.props.onRunOperation(operationName);
-                      }
-                    }}
-                    styleConfig={styleConfig}
-                  />
-                </AvailableFragmentsContext.Provider>
+                    } else {
+                      return parsedQuery;
+                    }
+                  }}
+                  schema={schema}
+                  getDefaultFieldNames={getDefaultFieldNames}
+                  getDefaultScalarArgValue={getDefaultScalarArgValue}
+                  makeDefaultArg={makeDefaultArg}
+                  onRunOperation={() => {
+                    if (!!this.props.onRunOperation) {
+                      this.props.onRunOperation(operationName);
+                    }
+                  }}
+                  styleConfig={styleConfig}
+                  availableFragments={availableFragments}
+                />
               );
             },
           )}
