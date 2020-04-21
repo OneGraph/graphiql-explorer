@@ -1364,8 +1364,9 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
         ? selection.selectionSet.selections
         : []
       : [];
+
     return (
-      <div>
+      <div className={`graphiql-explorer-${implementingType.name}`}>
         <span
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
@@ -1464,7 +1465,9 @@ class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
             checked={!!selection}
             styleConfig={this.props.styleConfig}
           />
-          <span style={{color: styleConfig.colors.def}}>
+          <span
+            style={{color: styleConfig.colors.def}}
+            className={`graphiql-explorer-${this.props.fragment.name.value}`}>
             {this.props.fragment.name.value}
           </span>
         </span>
@@ -1743,7 +1746,8 @@ class FieldView extends React.PureComponent<
 
     const applicableFragments =
       isObjectType(type) || isInterfaceType(type) || isUnionType(type)
-        ? this.props.availableFragments[type.name]
+        ? this.props.availableFragments &&
+          this.props.availableFragments[type.name]
         : null;
 
     const node = (
