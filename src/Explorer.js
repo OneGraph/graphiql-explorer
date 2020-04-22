@@ -56,8 +56,6 @@ import type {
   ValueNode,
 } from 'graphql';
 
-import ScalarInputPluginManager from './plugins/graphql-scalar-inputs'
-
 type Field = GraphQLField<any, any>;
 
 type GetDefaultScalarArgValue = (
@@ -2929,6 +2927,46 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
         </div>
       </div>
     );
+  }
+}
+
+class DatePlugin {
+  name = 'DateInput';
+
+  static canProcess(arg) {
+    return arg && arg.type && arg.type.name === 'Date';
+  }
+
+  static render(props) {
+    return (
+      <input
+        type="date"
+        value={props.arg.defaultValue}
+        onChange={props.setArgValue}
+      />
+    );
+  }
+}
+
+const bundledPlugins = [DatePlugin];
+
+class ScalarInputPluginManager {
+  constructor(plugins = [], enableBundledPlugins = false) {
+    const enabledPlugins = plugins;
+    if (enableBundledPlugins) {
+      // ensure bundled plugins are the last plugins checked.
+      enabledPlugins.push(...bundledPlugins);
+    }
+    this.plugins = enabledPlugins;
+  }
+
+  process(props) {
+    // plugins are provided in order, the first matching plugin will be used.
+    const handler = this.plugins.find(plugin => plugin.canProcess(props.arg));
+    if (handler) {
+      return handler.render(props);
+    }
+    return null;
   }
 }
 
