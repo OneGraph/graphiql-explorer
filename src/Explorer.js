@@ -125,6 +125,7 @@ type Props = {
     actionButtonStyle?: StyleMap,
   },
   showAttribution: boolean,
+  actionsOnTop: boolean,
 };
 
 type OperationType = 'query' | 'mutation' | 'subscription' | 'fragment';
@@ -2328,6 +2329,7 @@ class Explorer extends React.PureComponent<Props, State> {
   static defaultProps = {
     getDefaultFieldNames: defaultGetDefaultFieldNames,
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
+    actionsOnTop: false,
   };
 
   state = {
@@ -2619,6 +2621,14 @@ class Explorer extends React.PureComponent<Props, State> {
               flexDirection: 'row',
               alignItems: 'center',
               borderTop: '1px solid rgb(214, 214, 214)',
+              ...(this.props.actionsOnTop
+                  ? {
+                      borderTop: "none",
+                      borderBottom: '1px solid rgb(214, 214, 214)',
+                      marginTop: "0px",
+                      marginBottom: "0px",
+                    }
+                  : {})
             }}
             onSubmit={event => event.preventDefault()}>
             <span
@@ -2676,6 +2686,137 @@ class Explorer extends React.PureComponent<Props, State> {
 
     const attribution = this.props.showAttribution ? <Attribution /> : null;
 
+    const explorerEl = (<div
+      style={{
+        flexGrow: '1',
+        overflow: 'scroll',
+      }}>
+      {relevantOperations.map(
+        (
+          operation: OperationDefinitionNode | FragmentDefinitionNode,
+          index,
+        ) => {
+          const operationName =
+            operation && operation.name && operation.name.value;
+
+          const operationType =
+            operation.kind === 'FragmentDefinition'
+              ? 'fragment'
+              : (operation && operation.operation) || 'query';
+
+          const onOperationRename = newName => {
+            const newOperationDef = renameOperation(operation, newName);
+            this.props.onEdit(print(newOperationDef));
+          };
+
+          const onOperationClone = () => {
+            const newOperationDef = cloneOperation(operation);
+            this.props.onEdit(print(newOperationDef));
+          };
+
+          const onOperationDestroy = () => {
+            const newOperationDef = destroyOperation(operation);
+            this.props.onEdit(print(newOperationDef));
+          };
+
+          const fragmentType =
+            operation.kind === 'FragmentDefinition' &&
+            operation.typeCondition.kind === 'NamedType' &&
+            schema.getType(operation.typeCondition.name.value);
+
+          const fragmentFields =
+            fragmentType instanceof GraphQLObjectType
+              ? fragmentType.getFields()
+              : null;
+
+          const fields =
+            operationType === 'query'
+              ? queryFields
+              : operationType === 'mutation'
+                ? mutationFields
+                : operationType === 'subscription'
+                  ? subscriptionFields
+                  : operation.kind === 'FragmentDefinition'
+                    ? fragmentFields
+                    : null;
+
+          const fragmentTypeName =
+            operation.kind === 'FragmentDefinition'
+              ? operation.typeCondition.name.value
+              : null;
+
+          const onCommit = (parsedDocument: DocumentNode) => {
+            const textualNewDocument = print(parsedDocument);
+
+            this.props.onEdit(textualNewDocument);
+          };
+
+          return (
+            <RootView
+              isLast={index === relevantOperations.length - 1}
+              fields={fields}
+              operationType={operationType}
+              name={operationName}
+              definition={operation}
+              onOperationRename={onOperationRename}
+              onOperationDestroy={onOperationDestroy}
+              onOperationClone={onOperationClone}
+              onTypeName={fragmentTypeName}
+              onMount={this._handleRootViewMount}
+              onCommit={onCommit}
+              onEdit={(
+                newDefinition: ?DefinitionNode,
+                options: ?{ commit: boolean },
+              ): DocumentNode => {
+                let commit;
+                if (
+                  typeof options === 'object' &&
+                  typeof options.commit !== 'undefined'
+                ) {
+                  commit = options.commit;
+                } else {
+                  commit = true;
+                }
+
+                if (!!newDefinition) {
+                  const newQuery: DocumentNode = {
+                    ...parsedQuery,
+                    definitions: parsedQuery.definitions.map(
+                      existingDefinition =>
+                        existingDefinition === operation
+                          ? newDefinition
+                          : existingDefinition,
+                    ),
+                  };
+
+                  if (commit) {
+                    onCommit(newQuery);
+                    return newQuery;
+                  } else {
+                    return newQuery;
+                  }
+                } else {
+                  return parsedQuery;
+                }
+              }}
+              schema={schema}
+              getDefaultFieldNames={getDefaultFieldNames}
+              getDefaultScalarArgValue={getDefaultScalarArgValue}
+              makeDefaultArg={makeDefaultArg}
+              onRunOperation={() => {
+                if (!!this.props.onRunOperation) {
+                  this.props.onRunOperation(operationName);
+                }
+              }}
+              styleConfig={styleConfig}
+              availableFragments={availableFragments}
+            />
+          );
+        },
+      )}
+      {attribution}
+    </div>);
+
     return (
       <div
         ref={ref => {
@@ -2694,138 +2835,7 @@ class Explorer extends React.PureComponent<Props, State> {
           height: '100%',
         }}
         className="graphiql-explorer-root">
-        <div
-          style={{
-            flexGrow: '1',
-            overflow: 'scroll',
-          }}>
-          {relevantOperations.map(
-            (
-              operation: OperationDefinitionNode | FragmentDefinitionNode,
-              index,
-            ) => {
-              const operationName =
-                operation && operation.name && operation.name.value;
-
-              const operationType =
-                operation.kind === 'FragmentDefinition'
-                  ? 'fragment'
-                  : (operation && operation.operation) || 'query';
-
-              const onOperationRename = newName => {
-                const newOperationDef = renameOperation(operation, newName);
-                this.props.onEdit(print(newOperationDef));
-              };
-
-              const onOperationClone = () => {
-                const newOperationDef = cloneOperation(operation);
-                this.props.onEdit(print(newOperationDef));
-              };
-
-              const onOperationDestroy = () => {
-                const newOperationDef = destroyOperation(operation);
-                this.props.onEdit(print(newOperationDef));
-              };
-
-              const fragmentType =
-                operation.kind === 'FragmentDefinition' &&
-                operation.typeCondition.kind === 'NamedType' &&
-                schema.getType(operation.typeCondition.name.value);
-
-              const fragmentFields =
-                fragmentType instanceof GraphQLObjectType
-                  ? fragmentType.getFields()
-                  : null;
-
-              const fields =
-                operationType === 'query'
-                  ? queryFields
-                  : operationType === 'mutation'
-                  ? mutationFields
-                  : operationType === 'subscription'
-                  ? subscriptionFields
-                  : operation.kind === 'FragmentDefinition'
-                  ? fragmentFields
-                  : null;
-
-              const fragmentTypeName =
-                operation.kind === 'FragmentDefinition'
-                  ? operation.typeCondition.name.value
-                  : null;
-
-              const onCommit = (parsedDocument: DocumentNode) => {
-                const textualNewDocument = print(parsedDocument);
-
-                this.props.onEdit(textualNewDocument);
-              };
-
-              return (
-                <RootView
-                  isLast={index === relevantOperations.length - 1}
-                  fields={fields}
-                  operationType={operationType}
-                  name={operationName}
-                  definition={operation}
-                  onOperationRename={onOperationRename}
-                  onOperationDestroy={onOperationDestroy}
-                  onOperationClone={onOperationClone}
-                  onTypeName={fragmentTypeName}
-                  onMount={this._handleRootViewMount}
-                  onCommit={onCommit}
-                  onEdit={(
-                    newDefinition: ?DefinitionNode,
-                    options: ?{commit: boolean},
-                  ): DocumentNode => {
-                    let commit;
-                    if (
-                      typeof options === 'object' &&
-                      typeof options.commit !== 'undefined'
-                    ) {
-                      commit = options.commit;
-                    } else {
-                      commit = true;
-                    }
-
-                    if (!!newDefinition) {
-                      const newQuery: DocumentNode = {
-                        ...parsedQuery,
-                        definitions: parsedQuery.definitions.map(
-                          existingDefinition =>
-                            existingDefinition === operation
-                              ? newDefinition
-                              : existingDefinition,
-                        ),
-                      };
-
-                      if (commit) {
-                        onCommit(newQuery);
-                        return newQuery;
-                      } else {
-                        return newQuery;
-                      }
-                    } else {
-                      return parsedQuery;
-                    }
-                  }}
-                  schema={schema}
-                  getDefaultFieldNames={getDefaultFieldNames}
-                  getDefaultScalarArgValue={getDefaultScalarArgValue}
-                  makeDefaultArg={makeDefaultArg}
-                  onRunOperation={() => {
-                    if (!!this.props.onRunOperation) {
-                      this.props.onRunOperation(operationName);
-                    }
-                  }}
-                  styleConfig={styleConfig}
-                  availableFragments={availableFragments}
-                />
-              );
-            },
-          )}
-          {attribution}
-        </div>
-
-        {actionsEl}
+        {this.props.actionsOnTop ? [actionsEl, explorerEl] : [explorerEl, actionsEl]}
       </div>
     );
   }
