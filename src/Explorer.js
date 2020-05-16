@@ -526,6 +526,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         setArgFields={this._modifyChildFields}
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
@@ -940,6 +941,7 @@ class AbstractArgView extends React.PureComponent<
                     getDefaultScalarArgValue={
                       this.props.getDefaultScalarArgValue
                     }
+                    scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                     makeDefaultArg={this.props.makeDefaultArg}
                     onRunOperation={this.props.onRunOperation}
                     styleConfig={this.props.styleConfig}
@@ -971,254 +973,6 @@ class AbstractArgView extends React.PureComponent<
     if (usedDefaultRender) {
       input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
     }
-
-    const variablize = () => {
-      /**
-      1. Find current operation variables
-      2. Find current arg value
-      3. Create a new variable
-      4. Replace current arg value with variable
-      5. Add variable to operation
-      */
-
-      const baseVariableName = arg.name;
-      const conflictingNameCount = (
-        this.props.definition.variableDefinitions || []
-      ).filter(varDef =>
-        varDef.variable.name.value.startsWith(baseVariableName),
-      ).length;
-
-      let variableName;
-      if (conflictingNameCount > 0) {
-        variableName = `${baseVariableName}${conflictingNameCount}`;
-      } else {
-        variableName = baseVariableName;
-      }
-      // To get an AST definition of our variable from the instantiated arg,
-      // we print it to a string, then parseType to get our AST.
-      const argPrintedType = arg.type.toString();
-      const argType = parseType(argPrintedType);
-
-      const base: VariableDefinitionNode = {
-        kind: 'VariableDefinition',
-        variable: {
-          kind: 'Variable',
-          name: {
-            kind: 'Name',
-            value: variableName,
-          },
-        },
-        type: argType,
-        directives: [],
-      };
-
-      const variableDefinitionByName = name =>
-        (this.props.definition.variableDefinitions || []).find(
-          varDef => varDef.variable.name.value === name,
-        );
-
-      let variable: ?VariableDefinitionNode;
-
-      let subVariableUsageCountByName: {
-        [key: string]: number,
-      } = {};
-
-      if (typeof argValue !== 'undefined' && argValue !== null) {
-        /** In the process of devariabilizing descendent selections,
-         * we may have caused their variable definitions to become unused.
-         * Keep track and remove any variable definitions with 1 or fewer usages.
-         * */
-        const cleanedDefaultValue = visit(argValue, {
-          Variable(node) {
-            const varName = node.name.value;
-            const varDef = variableDefinitionByName(varName);
-
-            subVariableUsageCountByName[varName] =
-              subVariableUsageCountByName[varName] + 1 || 1;
-
-            if (!varDef) {
-              return;
-            }
-
-            return varDef.defaultValue;
-          },
-        });
-
-        const isNonNullable = base.type.kind === 'NonNullType';
-
-        // We're going to give the variable definition a default value, so we must make its type nullable
-        const unwrappedBase = isNonNullable
-          ? {...base, type: base.type.type}
-          : base;
-
-        variable = {...unwrappedBase, defaultValue: cleanedDefaultValue};
-      } else {
-        variable = base;
-      }
-
-      const newlyUnusedVariables = Object.entries(subVariableUsageCountByName)
-        // $FlowFixMe: Can't get Object.entries to realize usageCount *must* be a number
-        .filter(([_, usageCount]: [string, number]) => usageCount < 2)
-        .map(([varName: string, _]) => varName);
-
-      if (variable) {
-        const newDoc: ?DocumentNode = this.props.setArgValue(variable, false);
-
-        if (newDoc) {
-          const targetOperation = newDoc.definitions.find(definition => {
-            if (
-              !!definition.operation &&
-              !!definition.name &&
-              !!definition.name.value &&
-              //
-              !!this.props.definition.name &&
-              !!this.props.definition.name.value
-            ) {
-              return definition.name.value === this.props.definition.name.value;
-            } else {
-              return false;
-            }
-          });
-
-          const newVariableDefinitions: Array<VariableDefinitionNode> = [
-            ...(targetOperation.variableDefinitions || []),
-            variable,
-          ].filter(
-            varDef =>
-              newlyUnusedVariables.indexOf(varDef.variable.name.value) === -1,
-          );
-
-          const newOperation = {
-            ...targetOperation,
-            variableDefinitions: newVariableDefinitions,
-          };
-
-          const existingDefs = newDoc.definitions;
-
-          const newDefinitions = existingDefs.map(existingOperation => {
-            if (targetOperation === existingOperation) {
-              return newOperation;
-            } else {
-              return existingOperation;
-            }
-          });
-
-          const finalDoc = {
-            ...newDoc,
-            definitions: newDefinitions,
-          };
-
-          this.props.onCommit(finalDoc);
-        }
-      }
-    };
-
-    const devariablize = () => {
-      /**
-       * 1. Find the current variable definition in the operation def
-       * 2. Extract its value
-       * 3. Replace the current arg value
-       * 4. Visit the resulting operation to see if there are any other usages of the variable
-       * 5. If not, remove the variableDefinition
-       */
-      if (!argValue || !argValue.name || !argValue.name.value) {
-        return;
-      }
-
-      const variableName = argValue.name.value;
-      const variableDefinition = (
-        this.props.definition.variableDefinitions || []
-      ).find(varDef => varDef.variable.name.value === variableName);
-
-      if (!variableDefinition) {
-        return;
-      }
-
-      const defaultValue = variableDefinition.defaultValue;
-
-      const newDoc: ?DocumentNode = this.props.setArgValue(defaultValue, {
-        commit: false,
-      });
-
-      if (newDoc) {
-        const targetOperation: ?OperationDefinitionNode = newDoc.definitions.find(
-          definition =>
-            definition.name.value === this.props.definition.name.value,
-        );
-
-        if (!targetOperation) {
-          return;
-        }
-
-        // After de-variabilizing, see if the variable is still in use. If not, remove it.
-        let variableUseCount = 0;
-
-        visit(targetOperation, {
-          Variable(node) {
-            if (node.name.value === variableName) {
-              variableUseCount = variableUseCount + 1;
-            }
-          },
-        });
-
-        let newVariableDefinitions = targetOperation.variableDefinitions || [];
-
-        // A variable is in use if it shows up at least twice (once in the definition, once in the selection)
-        if (variableUseCount < 2) {
-          newVariableDefinitions = newVariableDefinitions.filter(
-            varDef => varDef.variable.name.value !== variableName,
-          );
-        }
-
-        const newOperation = {
-          ...targetOperation,
-          variableDefinitions: newVariableDefinitions,
-        };
-
-        const existingDefs = newDoc.definitions;
-
-        const newDefinitions = existingDefs.map(existingOperation => {
-          if (targetOperation === existingOperation) {
-            return newOperation;
-          } else {
-            return existingOperation;
-          }
-        });
-
-        const finalDoc = {
-          ...newDoc,
-          definitions: newDefinitions,
-        };
-
-        this.props.onCommit(finalDoc);
-      }
-    };
-
-    const isArgValueVariable = argValue && argValue.kind === 'Variable';
-
-    const variablizeActionButton = !this.state.displayArgActions ? null : (
-      <button
-        type="submit"
-        className="toolbar-button"
-        title={
-          isArgValueVariable
-            ? 'Remove the variable'
-            : 'Extract the current value into a GraphQL variable'
-        }
-        onClick={event => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          if (isArgValueVariable) {
-            devariablize();
-          } else {
-            variablize();
-          }
-        }}
-        style={styleConfig.styles.actionButtonStyle}>
-        <span style={{color: styleConfig.colors.variable}}>{'$'}</span>
-      </button>
-    );
 
     const variablize = () => {
       /**
@@ -1652,6 +1406,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   onCommit={this.props.onCommit}
@@ -2212,6 +1967,7 @@ class FieldView extends React.PureComponent<
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   styleConfig={this.props.styleConfig}
@@ -2234,6 +1990,7 @@ class FieldView extends React.PureComponent<
                       getDefaultScalarArgValue={
                         this.props.getDefaultScalarArgValue
                       }
+                      scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                       makeDefaultArg={this.props.makeDefaultArg}
                       onRunOperation={this.props.onRunOperation}
                       styleConfig={this.props.styleConfig}
