@@ -2761,6 +2761,7 @@ class Explorer extends React.PureComponent<Props, State> {
 
               return (
                 <RootView
+                  key={index}
                   isLast={index === relevantOperations.length - 1}
                   fields={fields}
                   operationType={operationType}
