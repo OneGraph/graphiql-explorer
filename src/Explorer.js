@@ -2460,12 +2460,20 @@ class Explorer extends React.PureComponent<Props, State> {
 
       return visit(parsedQuery, {
         OperationDefinition: node => {
-          if (node.name.value === targetOperation.name.value) {
+          if (
+            !targetOperationIsFragment &&
+            !!newName &&
+            node?.name?.value === targetOperation?.name?.value
+          ) {
             return {...node, name: newName};
           }
         },
         FragmentDefinition: node => {
-          if (node.name.value === targetOperation.name.value) {
+          if (
+            targetOperationIsFragment &&
+            !!newName &&
+            node?.name?.value === targetOperation?.name?.value
+          ) {
             return {...node, name: newName};
           }
         },
