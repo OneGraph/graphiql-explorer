@@ -1,6 +1,6 @@
 {
   "name": "graphiql-explorer",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "homepage": "https://github.com/onegraph/graphiql-explorer",
   "bugs": {
     "url": "https://github.com/onegraph/graphiql-explorer/issues"
