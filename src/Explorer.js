@@ -526,6 +526,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         setArgFields={this._modifyChildFields}
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
@@ -751,6 +752,9 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
+        modifyArguments={this.props.modifyArguments}
+        selection={this.props.selection}
         onCommit={this.props.onCommit}
         definition={this.props.definition}
       />
@@ -856,11 +860,8 @@ class AbstractArgView extends React.PureComponent<
   {|displayArgActions: boolean|},
 > {
   state = {displayArgActions: false};
-  render() {
-    const {argValue, arg, styleConfig} = this.props;
-    /* TODO: handle List types*/
-    const argType = unwrapInputType(arg.type);
 
+  defaultArgViewHandler(arg, argType, argValue, styleConfig) {
     let input = null;
     if (argValue) {
       if (argValue.kind === 'Variable') {
@@ -940,6 +941,7 @@ class AbstractArgView extends React.PureComponent<
                     getDefaultScalarArgValue={
                       this.props.getDefaultScalarArgValue
                     }
+                    scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                     makeDefaultArg={this.props.makeDefaultArg}
                     onRunOperation={this.props.onRunOperation}
                     styleConfig={this.props.styleConfig}
@@ -957,6 +959,19 @@ class AbstractArgView extends React.PureComponent<
           );
         }
       }
+    }
+    return input;
+  }
+
+  render() {
+    const {argValue, arg, styleConfig, scalarInputsPluginManager} = this.props;
+    /* TODO: handle List types*/
+    const argType = unwrapInputType(arg.type);
+
+    let input = scalarInputsPluginManager && scalarInputsPluginManager.process(this.props)
+    let usedDefaultRender = !input;
+    if (usedDefaultRender) {
+      input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
     }
 
     const variablize = () => {
@@ -1229,7 +1244,7 @@ class AbstractArgView extends React.PureComponent<
             }
             this.setState({displayArgActions: shouldAdd});
           }}>
-          {isInputObjectType(argType) ? (
+          {usedDefaultRender && isInputObjectType(argType) ? (
             <span>
               {!!argValue
                 ? this.props.styleConfig.arrowOpen
@@ -1391,6 +1406,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   onCommit={this.props.onCommit}
@@ -1897,6 +1913,7 @@ class FieldView extends React.PureComponent<
                 makeDefaultArg={this.props.makeDefaultArg}
                 onRunOperation={this.props.onRunOperation}
                 styleConfig={this.props.styleConfig}
+                scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                 onCommit={this.props.onCommit}
                 definition={this.props.definition}
               />
@@ -1950,6 +1967,7 @@ class FieldView extends React.PureComponent<
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   styleConfig={this.props.styleConfig}
@@ -1972,6 +1990,7 @@ class FieldView extends React.PureComponent<
                       getDefaultScalarArgValue={
                         this.props.getDefaultScalarArgValue
                       }
+                      scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                       makeDefaultArg={this.props.makeDefaultArg}
                       onRunOperation={this.props.onRunOperation}
                       styleConfig={this.props.styleConfig}
@@ -2284,6 +2303,7 @@ class RootView extends React.PureComponent<
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
               styleConfig={this.props.styleConfig}
+              scalarInputsPluginManager={this.props.scalarInputsPluginManager}
               onCommit={this.props.onCommit}
               definition={this.props.definition}
               availableFragments={this.props.availableFragments}
@@ -2330,11 +2350,17 @@ class Explorer extends React.PureComponent<Props, State> {
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
   };
 
-  state = {
-    newOperationType: 'query',
-    operation: null,
-    operationToScrollTo: null,
-  };
+  constructor(props) {
+    super(props);
+    const { graphqlCustomScalarPlugins, enableBundledPlugins } = this.props;
+    this.scalarInputsPluginManager = new ScalarInputPluginManager(graphqlCustomScalarPlugins, enableBundledPlugins);
+    // should set initial state in object constructor
+    this.state = {
+      newOperationType: 'query',
+      operation: null,
+      operationToScrollTo: null,
+    };
+  }
 
   _ref: ?any;
   _resetScroll = () => {
@@ -2818,6 +2844,7 @@ class Explorer extends React.PureComponent<Props, State> {
                     }
                   }}
                   styleConfig={styleConfig}
+                  scalarInputsPluginManager={this.scalarInputsPluginManager}
                   availableFragments={availableFragments}
                 />
               );
@@ -2865,6 +2892,8 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
   static defaultProps = {
     width: 320,
     title: 'Explorer',
+    graphqlCustomScalarPlugins: [],
+    enableBundledPlugins: false,
   };
 
   render() {
@@ -2904,6 +2933,46 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
         </div>
       </div>
     );
+  }
+}
+
+class DatePlugin {
+  name = 'DateInput';
+
+  static canProcess(arg) {
+    return arg && arg.type && arg.type.name === 'Date';
+  }
+
+  static render(props) {
+    return (
+      <input
+        type="date"
+        value={props.arg.defaultValue}
+        onChange={props.setArgValue}
+      />
+    );
+  }
+}
+
+const bundledPlugins = [DatePlugin];
+
+class ScalarInputPluginManager {
+  constructor(plugins = [], enableBundledPlugins = false) {
+    const enabledPlugins = plugins;
+    if (enableBundledPlugins) {
+      // ensure bundled plugins are the last plugins checked.
+      enabledPlugins.push(...bundledPlugins);
+    }
+    this.plugins = enabledPlugins;
+  }
+
+  process(props) {
+    // plugins are provided in order, the first matching plugin will be used.
+    const handler = this.plugins.find(plugin => plugin.canProcess(props.arg));
+    if (handler) {
+      return handler.render(props);
+    }
+    return null;
   }
 }
 
