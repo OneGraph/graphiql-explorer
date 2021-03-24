@@ -1,13 +1,18 @@
+# [GraphiQL Explorer](https://github.com/OneGraph/graphiql-explorer) &middot; [![npm version](http://img.shields.io/npm/v/graphiql-explorer.svg?style=flat)](https://npmjs.org/package/graphiql-explorer "View this project on npm")
 Interactive explorer plugin for GraphiQL.
 
-Try it live at [https://www.onegraph.com/graphiql](https://www.onegraph.com/graphiql).
+Try it live at [onegraph.com/graphiql](https://www.onegraph.com/graphiql).
 
 [OneGraph](https://www.onegraph.com) provides easy, consistent access to the APIs that underlie your business--all through the power of GraphQL.
 
 Sign up at [https://www.onegraph.com](http://www.onegraph.com).
 
-[![npm version](http://img.shields.io/npm/v/graphiql-explorer.svg?style=flat)](https://npmjs.org/package/graphiql-explorer "View this project on npm")
+## Installation
+To use with node:
 
+```bash
+npm install graphiql-explorer
+```
 
 ## Example usage
 
