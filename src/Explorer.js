@@ -1883,25 +1883,29 @@ class FieldView extends React.PureComponent<
           )}
         </span>
         {selection && args.length ? (
-          <div
-            style={{marginLeft: 16}}
-            className="graphiql-explorer-graphql-arguments">
-            {args.map(arg => (
-              <ArgView
-                key={arg.name}
-                parentField={field}
-                arg={arg}
-                selection={selection}
-                modifyArguments={this._setArguments}
-                getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-                makeDefaultArg={this.props.makeDefaultArg}
-                onRunOperation={this.props.onRunOperation}
-                styleConfig={this.props.styleConfig}
-                onCommit={this.props.onCommit}
-                definition={this.props.definition}
-              />
-            ))}
-          </div>
+          <React.Fragment>
+            <div style={{display: 'inline', marginLeft: '3px'}}>{'('}</div>
+            <div
+              style={{marginLeft: 16}}
+              className="graphiql-explorer-graphql-arguments">
+              {args.map(arg => (
+                <ArgView
+                  key={arg.name}
+                  parentField={field}
+                  arg={arg}
+                  selection={selection}
+                  modifyArguments={this._setArguments}
+                  getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
+                  styleConfig={this.props.styleConfig}
+                  onCommit={this.props.onCommit}
+                  definition={this.props.definition}
+                />
+              ))}
+            </div>
+            <div>{')'}</div>
+          </React.Fragment>
         ) : null}
       </div>
     );
