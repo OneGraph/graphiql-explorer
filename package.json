@@ -9,7 +9,7 @@
     "type": "git",
     "url": "http://github.com/onegraph/graphiql-explorer.git"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "main": "dist/index.js",
   "files": [
     "dist",
