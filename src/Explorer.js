@@ -125,6 +125,7 @@ type Props = {
     actionButtonStyle?: StyleMap,
   },
   showAttribution: boolean,
+  hideActions?: boolean
 };
 
 type OperationType = 'query' | 'mutation' | 'subscription' | 'fragment';
@@ -2604,7 +2605,7 @@ class Explorer extends React.PureComponent<Props, State> {
     ].filter(Boolean);
 
     const actionsEl =
-      actionsOptions.length === 0 ? null : (
+      (actionsOptions.length === 0 || this.props.hideActions) ? null : (
         <div
           style={{
             minHeight: '50px',
