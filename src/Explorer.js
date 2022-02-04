@@ -125,7 +125,8 @@ type Props = {
     actionButtonStyle?: StyleMap,
   },
   showAttribution: boolean,
-  hideActions?: boolean
+  hideActions?: boolean,
+  externalFragments?: FragmentDefinitionNode[],
 };
 
 type OperationType = 'query' | 'mutation' | 'subscription' | 'fragment';
@@ -2605,7 +2606,7 @@ class Explorer extends React.PureComponent<Props, State> {
     ].filter(Boolean);
 
     const actionsEl =
-      (actionsOptions.length === 0 || this.props.hideActions) ? null : (
+      actionsOptions.length === 0 || this.props.hideActions ? null : (
         <div
           style={{
             minHeight: '50px',
@@ -2655,7 +2656,26 @@ class Explorer extends React.PureComponent<Props, State> {
         </div>
       );
 
-    const availableFragments: AvailableFragments = relevantOperations.reduce(
+    const externalFragments =
+      this.props.externalFragments &&
+      this.props.externalFragments.reduce((acc, fragment) => {
+        if (fragment.kind === 'FragmentDefinition') {
+          const fragmentTypeName = fragment.typeCondition.name.value;
+          const existingFragmentsForType = acc[fragmentTypeName] || [];
+          const newFragmentsForType = [
+            ...existingFragmentsForType,
+            fragment,
+          ].sort((a, b) => a.name.value.localeCompare(b.name.value));
+          return {
+            ...acc,
+            [fragmentTypeName]: newFragmentsForType,
+          };
+        }
+
+        return acc;
+      }, {});
+
+    const documentFragments: AvailableFragments = relevantOperations.reduce(
       (acc, operation) => {
         if (operation.kind === 'FragmentDefinition') {
           const fragmentTypeName = operation.typeCondition.name.value;
@@ -2674,6 +2694,8 @@ class Explorer extends React.PureComponent<Props, State> {
       },
       {},
     );
+
+    const availableFragments = {...documentFragments, ...externalFragments};
 
     const attribution = this.props.showAttribution ? <Attribution /> : null;
 
