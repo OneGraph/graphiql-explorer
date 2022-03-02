@@ -1,13 +1,13 @@
 {
-  "name": "graphiql-explorer",
-  "version": "0.8.0",
+  "name": "@agrimetrics/graphiql-explorer",
+  "version": "0.8.1",
   "homepage": "https://github.com/onegraph/graphiql-explorer",
   "bugs": {
     "url": "https://github.com/onegraph/graphiql-explorer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "http://github.com/onegraph/graphiql-explorer.git"
+    "url": "http://github.com/agrimetrics/graphiql-explorer.git"
   },
   "license": "MIT",
   "main": "dist/index.js",
