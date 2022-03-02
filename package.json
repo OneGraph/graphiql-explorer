@@ -1,6 +1,6 @@
 {
   "name": "graphiql-explorer",
-  "version": "0.4.6",
+  "version": "0.8.0",
   "homepage": "https://github.com/onegraph/graphiql-explorer",
   "bugs": {
     "url": "https://github.com/onegraph/graphiql-explorer/issues"
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "http://github.com/onegraph/graphiql-explorer.git"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -35,7 +35,7 @@
     ]
   },
   "peerDependencies": {
-    "graphql": "^0.6.0 || ^0.7.0 || ^0.8.0-b || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0",
+    "graphql": "^0.6.0 || ^0.7.0 || ^0.8.0-b || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0",
     "react": "^15.6.0 || ^16.0.0",
     "react-dom": "^15.6.0 || ^16.0.0"
   },
@@ -76,8 +76,6 @@
   "scripts": {
     "build": "bash ./resources/build.sh",
     "check": "flow check",
-    "prepublish": ". ./resources/prepublish.sh",
-    "preversion": ". ./resources/checkgit.sh && npm test",
     "test": "npm run check && npm run build"
   }
 }
