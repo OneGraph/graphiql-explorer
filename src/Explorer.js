@@ -14,6 +14,7 @@ import * as React from 'react';
 import {
   getNamedType,
   GraphQLObjectType,
+  GraphQLInterfaceType,
   isEnumType,
   isInputObjectType,
   isInterfaceType,
@@ -1746,11 +1747,30 @@ class FieldView extends React.PureComponent<
       className += ' graphiql-explorer-deprecated';
     }
 
-    const applicableFragments =
+    const availableInterfaceFragments = isObjectType(type)
+      ? type.getInterfaces().reduce((acc, next) => {
+          if (next.name !== type.name) {
+            return [
+              ...acc,
+              ...((this.props.availableFragments || {})[next.name] || []),
+            ];
+          }
+
+          // Don't add these matches, since they'll be picked up by the simpler next check
+          return acc;
+        }, [])
+      : null;
+
+    const basicApplicableFragments =
       isObjectType(type) || isInterfaceType(type) || isUnionType(type)
         ? this.props.availableFragments &&
           this.props.availableFragments[type.name]
         : null;
+
+    const applicableFragments = [
+      ...(basicApplicableFragments || []),
+      ...(availableInterfaceFragments || []),
+    ];
 
     const node = (
       <div className={className}>
@@ -1769,7 +1789,7 @@ class FieldView extends React.PureComponent<
           onClick={this._handleUpdateSelections}
           onMouseEnter={() => {
             const containsMeaningfulSubselection =
-              isObjectType(type) &&
+              (isObjectType(type) || isInterfaceType(type)) &&
               selection &&
               selection.selectionSet &&
               selection.selectionSet.selections.filter(
@@ -2429,26 +2449,45 @@ class Explorer extends React.PureComponent<Props, State> {
         : _relevantOperations;
 
     const renameOperation = (targetOperation, name) => {
+      const targetOperationExistingName =
+        (targetOperation.name && targetOperation.name.value) || 'unknown';
+
       const newName =
         name == null || name === ''
           ? null
           : {kind: 'Name', value: name, loc: undefined};
-      const newOperation = {...targetOperation, name: newName};
 
-      const existingDefs = parsedQuery.definitions;
+      const targetOperationIsFragment =
+        targetOperation.kind === 'FragmentDefinition';
 
-      const newDefinitions = existingDefs.map(existingOperation => {
-        if (targetOperation === existingOperation) {
-          return newOperation;
-        } else {
-          return existingOperation;
-        }
+      return visit(parsedQuery, {
+        OperationDefinition: node => {
+          if (
+            !targetOperationIsFragment &&
+            !!newName &&
+            node?.name?.value === targetOperation?.name?.value
+          ) {
+            return {...node, name: newName};
+          }
+        },
+        FragmentDefinition: node => {
+          if (
+            targetOperationIsFragment &&
+            !!newName &&
+            node?.name?.value === targetOperation?.name?.value
+          ) {
+            return {...node, name: newName};
+          }
+        },
+        FragmentSpread: node => {
+          if (
+            targetOperationIsFragment &&
+            node.name.value === targetOperationExistingName
+          ) {
+            return {...node, name: {...newName}};
+          }
+        },
       });
-
-      return {
-        ...parsedQuery,
-        definitions: newDefinitions,
-      };
     };
 
     const cloneOperation = (
@@ -2756,7 +2795,8 @@ class Explorer extends React.PureComponent<Props, State> {
                 schema.getType(operation.typeCondition.name.value);
 
               const fragmentFields =
-                fragmentType instanceof GraphQLObjectType
+                fragmentType instanceof GraphQLObjectType ||
+                fragmentType instanceof GraphQLInterfaceType
                   ? fragmentType.getFields()
                   : null;
 
