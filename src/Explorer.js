@@ -872,34 +872,54 @@ class AbstractArgView extends React.PureComponent<
           </span>
         );
       } else if (isScalarType(argType)) {
-        if (argType.name === 'Boolean') {
-          input = (
-            <select
-              style={{
-                color: styleConfig.colors.builtin,
-              }}
-              onChange={this.props.setArgValue}
-              value={
-                argValue.kind === 'BooleanValue' ? argValue.value : undefined
-              }>
-              <option key="true" value="true">
-                true
-              </option>
-              <option key="false" value="false">
-                false
-              </option>
-            </select>
-          );
-        } else {
-          input = (
-            <ScalarInput
-              setArgValue={this.props.setArgValue}
-              arg={arg}
-              argValue={argValue}
-              onRunOperation={this.props.onRunOperation}
-              styleConfig={this.props.styleConfig}
-            />
-          );
+        switch (argType.name) {
+          case 'Boolean':
+            input = (
+              <select
+                style={{
+                  color: styleConfig.colors.builtin,
+                }}
+                onChange={this.props.setArgValue}
+                value={
+                  argValue.kind === 'BooleanValue' ? argValue.value : undefined
+                }>
+                <option key="true" value="true">
+                  true
+                </option>
+                <option key="false" value="false">
+                  false
+                </option>
+              </select>
+            );
+            break;
+          case 'HexColorCode':
+            input = (
+              <input
+                type="color"
+                value={argValue.value}
+                onChange={this.props.setArgValue}
+              />
+            );
+            break;
+          case 'Date':
+            input = (
+              <input
+                type="date"
+                value={argValue.value}
+                onChange={this.props.setArgValue}
+              />
+            );
+            break;
+          default:
+            input = (
+              <ScalarInput
+                setArgValue={this.props.setArgValue}
+                arg={arg}
+                argValue={argValue}
+                onRunOperation={this.props.onRunOperation}
+                styleConfig={this.props.styleConfig}
+              />
+            );
         }
       } else if (isEnumType(argType)) {
         if (argValue.kind === 'EnumValue') {
