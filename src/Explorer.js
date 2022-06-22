@@ -310,9 +310,9 @@ function coerceArgValue(
             const parsed = JSON.parse(value);
             if (typeof parsed === 'boolean') {
               return {kind: 'BooleanValue', value: parsed};
-            } else {
+            } 
               return {kind: 'BooleanValue', value: false};
-            }
+            
           } catch (e) {
             return {
               kind: 'BooleanValue',
@@ -327,16 +327,16 @@ function coerceArgValue(
       }
     } catch (e) {
       console.error('error coercing arg value', e, value);
-      return {kind: 'StringValue', value: value};
+      return {kind: 'StringValue', value};
     }
   } else {
     try {
       const parsedValue = argType.parseValue(value);
       if (parsedValue) {
         return {kind: 'EnumValue', value: String(parsedValue)};
-      } else {
+      } 
         return {kind: 'EnumValue', value: argType.getValues()[0].name};
-      }
+      
     } catch (e) {
       return {kind: 'EnumValue', value: argType.getValues()[0].name};
     }
@@ -467,7 +467,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
       value = null;
     } else if (
       !event.target &&
-      !!event.kind &&
+      Boolean(event.kind) &&
       event.kind === 'VariableDefinition'
     ) {
       targetValue = event;
@@ -485,7 +485,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         const newField = isTarget
           ? {
               ...field,
-              value: value,
+              value,
             }
           : field;
 
@@ -505,7 +505,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
               ...field,
               value: {
                 kind: 'ObjectValue',
-                fields: fields,
+                fields,
               },
             }
           : field,
@@ -528,6 +528,7 @@ class InputArgView extends React.PureComponent<InputArgViewProps, {}> {
         setArgFields={this._modifyChildFields}
         setArgValue={this._setArgValue}
         getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
@@ -561,7 +562,7 @@ export function defaultValue(
 ): ValueNode {
   if (isEnumType(argType)) {
     return {kind: 'EnumValue', value: argType.getValues()[0].name};
-  } else {
+  } 
     switch (argType.name) {
       case 'String':
         return {kind: 'StringValue', value: ''};
@@ -574,7 +575,7 @@ export function defaultValue(
       default:
         return {kind: 'StringValue', value: ''};
     }
-  }
+  
 }
 
 function defaultGetDefaultScalarArgValue(
@@ -642,12 +643,12 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
     if (!argSelection) {
       console.error('Unable to add arg for argType', argType);
       return null;
-    } else {
+    } 
       return this.props.modifyArguments(
         [...(selection.arguments || []), argSelection],
         commit,
       );
-    }
+    
   };
   _setArgValue = (
     event: SyntheticInputEvent<*> | VariableDefinitionNode,
@@ -704,7 +705,7 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         a === argSelection
           ? {
               ...a,
-              value: value,
+              value,
             }
           : a,
       ),
@@ -753,6 +754,9 @@ class ArgView extends React.PureComponent<ArgViewProps, ArgViewState> {
         makeDefaultArg={this.props.makeDefaultArg}
         onRunOperation={this.props.onRunOperation}
         styleConfig={this.props.styleConfig}
+        scalarInputsPluginManager={this.props.scalarInputsPluginManager}
+        modifyArguments={this.props.modifyArguments}
+        selection={this.props.selection}
         onCommit={this.props.onCommit}
         definition={this.props.definition}
       />
@@ -858,11 +862,8 @@ class AbstractArgView extends React.PureComponent<
   {|displayArgActions: boolean|},
 > {
   state = {displayArgActions: false};
-  render() {
-    const {argValue, arg, styleConfig} = this.props;
-    /* TODO: handle List types*/
-    const argType = unwrapInputType(arg.type);
 
+  defaultArgViewHandler(arg, argType, argValue, styleConfig) {
     let input = null;
     if (argValue) {
       if (argValue.kind === 'Variable') {
@@ -942,6 +943,7 @@ class AbstractArgView extends React.PureComponent<
                     getDefaultScalarArgValue={
                       this.props.getDefaultScalarArgValue
                     }
+                    scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                     makeDefaultArg={this.props.makeDefaultArg}
                     onRunOperation={this.props.onRunOperation}
                     styleConfig={this.props.styleConfig}
@@ -959,6 +961,19 @@ class AbstractArgView extends React.PureComponent<
           );
         }
       }
+    }
+    return input;
+  }
+
+  render() {
+    const {argValue, arg, styleConfig, scalarInputsPluginManager} = this.props;
+    /* TODO: handle List types*/
+    const argType = unwrapInputType(arg.type);
+
+    let input = scalarInputsPluginManager && scalarInputsPluginManager.process(this.props)
+    const usedDefaultRender = !input;
+    if (usedDefaultRender) {
+      input = this.defaultArgViewHandler(arg, argType, argValue, styleConfig);
     }
 
     const variablize = () => {
@@ -1008,7 +1023,7 @@ class AbstractArgView extends React.PureComponent<
 
       let variable: ?VariableDefinitionNode;
 
-      let subVariableUsageCountByName: {
+      const subVariableUsageCountByName: {
         [key: string]: number,
       } = {};
 
@@ -1056,17 +1071,17 @@ class AbstractArgView extends React.PureComponent<
         if (newDoc) {
           const targetOperation = newDoc.definitions.find(definition => {
             if (
-              !!definition.operation &&
-              !!definition.name &&
-              !!definition.name.value &&
+              Boolean(definition.operation) &&
+              Boolean(definition.name) &&
+              Boolean(definition.name.value) &&
               //
-              !!this.props.definition.name &&
-              !!this.props.definition.name.value
+              Boolean(this.props.definition.name) &&
+              Boolean(this.props.definition.name.value)
             ) {
               return definition.name.value === this.props.definition.name.value;
-            } else {
+            } 
               return false;
-            }
+            
           });
 
           const newVariableDefinitions: Array<VariableDefinitionNode> = [
@@ -1087,9 +1102,9 @@ class AbstractArgView extends React.PureComponent<
           const newDefinitions = existingDefs.map(existingOperation => {
             if (targetOperation === existingOperation) {
               return newOperation;
-            } else {
+            } 
               return existingOperation;
-            }
+            
           });
 
           const finalDoc = {
@@ -1145,7 +1160,7 @@ class AbstractArgView extends React.PureComponent<
         visit(targetOperation, {
           Variable(node) {
             if (node.name.value === variableName) {
-              variableUseCount = variableUseCount + 1;
+              variableUseCount += 1;
             }
           },
         });
@@ -1169,9 +1184,9 @@ class AbstractArgView extends React.PureComponent<
         const newDefinitions = existingDefs.map(existingOperation => {
           if (targetOperation === existingOperation) {
             return newOperation;
-          } else {
+          } 
             return existingOperation;
-          }
+          
         });
 
         const finalDoc = {
@@ -1231,15 +1246,15 @@ class AbstractArgView extends React.PureComponent<
             }
             this.setState({displayArgActions: shouldAdd});
           }}>
-          {isInputObjectType(argType) ? (
+          {usedDefaultRender && isInputObjectType(argType) ? (
             <span>
-              {!!argValue
+              {argValue
                 ? this.props.styleConfig.arrowOpen
                 : this.props.styleConfig.arrowClosed}
             </span>
           ) : (
             <Checkbox
-              checked={!!argValue}
+              checked={Boolean(argValue)}
               styleConfig={this.props.styleConfig}
             />
           )}
@@ -1373,7 +1388,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
           <Checkbox
-            checked={!!selection}
+            checked={Boolean(selection)}
             styleConfig={this.props.styleConfig}
           />
           <span style={{color: styleConfig.colors.atom}}>
@@ -1393,6 +1408,7 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   onCommit={this.props.onCommit}
@@ -1464,7 +1480,7 @@ class FragmentView extends React.PureComponent<FragmentViewProps, {}> {
           style={{cursor: 'pointer'}}
           onClick={selection ? this._removeFragment : this._addFragment}>
           <Checkbox
-            checked={!!selection}
+            checked={Boolean(selection)}
             styleConfig={this.props.styleConfig}
           />
           <span
@@ -1583,7 +1599,7 @@ class FieldView extends React.PureComponent<
 
   _previousSelection: ?SelectionNode;
   _addAllFieldsToSelections = rawSubfields => {
-    const subFields: Array<FieldNode> = !!rawSubfields
+    const subFields: Array<FieldNode> = rawSubfields
       ? Object.keys(rawSubfields).map(fieldName => {
           return {
             kind: 'Field',
@@ -1602,10 +1618,10 @@ class FieldView extends React.PureComponent<
       ...this.props.selections.filter(selection => {
         if (selection.kind === 'InlineFragment') {
           return true;
-        } else {
+        } 
           // Remove the current selection set for the target field
           return selection.name.value !== this.props.field.name;
-        }
+        
       }),
       {
         kind: 'Field',
@@ -1647,7 +1663,7 @@ class FieldView extends React.PureComponent<
       const fieldType = getNamedType(this.props.field.type);
       const rawSubfields = isObjectType(fieldType) && fieldType.getFields();
 
-      const shouldSelectAllSubfields = !!rawSubfields && event.altKey;
+      const shouldSelectAllSubfields = Boolean(rawSubfields) && event.altKey;
 
       shouldSelectAllSubfields
         ? this._addAllFieldsToSelections(rawSubfields)
@@ -1740,6 +1756,7 @@ class FieldView extends React.PureComponent<
     const selection = this._getSelection();
     const type = unwrapOutputType(field.type);
     const args = field.args.sort((a, b) => a.name.localeCompare(b.name));
+
     let className = `graphiql-explorer-node graphiql-explorer-${field.name}`;
 
     if (field.isDeprecated) {
@@ -1783,14 +1800,14 @@ class FieldView extends React.PureComponent<
           onMouseLeave={() => this.setState({displayFieldActions: false})}>
           {isObjectType(type) ? (
             <span>
-              {!!selection
+              {selection
                 ? this.props.styleConfig.arrowOpen
                 : this.props.styleConfig.arrowClosed}
             </span>
           ) : null}
           {isObjectType(type) ? null : (
             <Checkbox
-              checked={!!selection}
+              checked={Boolean(selection)}
               styleConfig={this.props.styleConfig}
             />
           )}
@@ -1899,6 +1916,7 @@ class FieldView extends React.PureComponent<
                 makeDefaultArg={this.props.makeDefaultArg}
                 onRunOperation={this.props.onRunOperation}
                 styleConfig={this.props.styleConfig}
+                scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                 onCommit={this.props.onCommit}
                 definition={this.props.definition}
               />
@@ -1922,7 +1940,7 @@ class FieldView extends React.PureComponent<
         <div className={`graphiql-explorer-${field.name}`}>
           {node}
           <div style={{marginLeft: 16}}>
-            {!!applicableFragments
+            {applicableFragments
               ? applicableFragments.map(fragment => {
                   const type = schema.getType(
                     fragment.typeCondition.name.value,
@@ -1952,6 +1970,7 @@ class FieldView extends React.PureComponent<
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                   makeDefaultArg={this.props.makeDefaultArg}
                   onRunOperation={this.props.onRunOperation}
                   styleConfig={this.props.styleConfig}
@@ -1974,6 +1993,7 @@ class FieldView extends React.PureComponent<
                       getDefaultScalarArgValue={
                         this.props.getDefaultScalarArgValue
                       }
+                      scalarInputsPluginManager={this.props.scalarInputsPluginManager}
                       makeDefaultArg={this.props.makeDefaultArg}
                       onRunOperation={this.props.onRunOperation}
                       styleConfig={this.props.styleConfig}
@@ -2025,7 +2045,7 @@ let parseQueryMemoize: ?[string, DocumentNode] = null;
 function memoizeParseQuery(query: string): DocumentNode {
   if (parseQueryMemoize && parseQueryMemoize[0] === query) {
     return parseQueryMemoize[1];
-  } else {
+  } 
     const result = parseQuery(query);
     if (!result) {
       return DEFAULT_DOCUMENT;
@@ -2033,14 +2053,14 @@ function memoizeParseQuery(query: string): DocumentNode {
       if (parseQueryMemoize) {
         // Most likely a temporarily invalid query while they type
         return parseQueryMemoize[1];
-      } else {
+      } 
         return DEFAULT_DOCUMENT;
-      }
-    } else {
+      
+    } 
       parseQueryMemoize = [query, result];
       return result;
-    }
-  }
+    
+  
 }
 
 const defaultStyles = {
@@ -2238,7 +2258,7 @@ class RootView extends React.PureComponent<
               onChange={this._onOperationRename}
             />
           </span>
-          {!!this.props.onTypeName ? (
+          {this.props.onTypeName ? (
             <span>
               <br />
               {`on ${this.props.onTypeName}`}
@@ -2246,7 +2266,7 @@ class RootView extends React.PureComponent<
           ) : (
             ''
           )}
-          {!!this.state.displayTitleActions ? (
+          {this.state.displayTitleActions ? (
             <React.Fragment>
               <button
                 type="submit"
@@ -2286,6 +2306,7 @@ class RootView extends React.PureComponent<
               makeDefaultArg={this.props.makeDefaultArg}
               onRunOperation={this.props.onRunOperation}
               styleConfig={this.props.styleConfig}
+              scalarInputsPluginManager={this.props.scalarInputsPluginManager}
               onCommit={this.props.onCommit}
               definition={this.props.definition}
               availableFragments={this.props.availableFragments}
@@ -2332,11 +2353,17 @@ class Explorer extends React.PureComponent<Props, State> {
     getDefaultScalarArgValue: defaultGetDefaultScalarArgValue,
   };
 
-  state = {
-    newOperationType: 'query',
-    operation: null,
-    operationToScrollTo: null,
-  };
+  constructor(props) {
+    super(props);
+    const { graphqlCustomScalarPlugins, enableBundledPlugins } = this.props;
+    this.scalarInputsPluginManager = new ScalarInputPluginManager(graphqlCustomScalarPlugins, enableBundledPlugins);
+    // should set initial state in object constructor
+    this.state = {
+      newOperationType: 'query',
+      operation: null,
+      operationToScrollTo: null,
+    };
+  }
 
   _ref: ?any;
   _resetScroll = () => {
@@ -2357,12 +2384,12 @@ class Explorer extends React.PureComponent<Props, State> {
 
   _handleRootViewMount = (rootViewElId: string) => {
     if (
-      !!this.state.operationToScrollTo &&
+      Boolean(this.state.operationToScrollTo) &&
       this.state.operationToScrollTo === rootViewElId
     ) {
-      var selector = `.graphiql-explorer-root #${rootViewElId}`;
+      const selector = `.graphiql-explorer-root #${rootViewElId}`;
 
-      var el = document.querySelector(selector);
+      const el = document.querySelector(selector);
       el && el.scrollIntoView();
     }
   };
@@ -2415,9 +2442,9 @@ class Explorer extends React.PureComponent<Props, State> {
           return definition;
         } else if (definition.kind === 'OperationDefinition') {
           return definition;
-        } else {
+        } 
           return null;
-        }
+        
       })
       .filter(Boolean);
 
@@ -2440,9 +2467,9 @@ class Explorer extends React.PureComponent<Props, State> {
       const newDefinitions = existingDefs.map(existingOperation => {
         if (targetOperation === existingOperation) {
           return newOperation;
-        } else {
+        } 
           return existingOperation;
-        }
+        
       });
 
       return {
@@ -2490,9 +2517,9 @@ class Explorer extends React.PureComponent<Props, State> {
       const newDefinitions = existingDefs.filter(existingOperation => {
         if (targetOperation === existingOperation) {
           return false;
-        } else {
+        } 
           return true;
-        }
+        
       });
 
       return {
@@ -2513,10 +2540,10 @@ class Explorer extends React.PureComponent<Props, State> {
         : existingDefs.filter(def => {
             if (def.kind === 'OperationDefinition') {
               return def.operation === kind;
-            } else {
+            } 
               // Don't support adding fragments from explorer
               return false;
-            }
+            
           });
 
       const newOperationName = `My${capitalize(kind)}${
@@ -2551,7 +2578,7 @@ class Explorer extends React.PureComponent<Props, State> {
         name: {kind: 'Name', value: newOperationName},
         variableDefinitions: [],
         directives: [],
-        selectionSet: selectionSet,
+        selectionSet,
         loc: null,
       };
 
@@ -2573,7 +2600,7 @@ class Explorer extends React.PureComponent<Props, State> {
     };
 
     const actionsOptions = [
-      !!queryFields ? (
+      queryFields ? (
         <option
           key="query"
           className={'toolbar-button'}
@@ -2583,7 +2610,7 @@ class Explorer extends React.PureComponent<Props, State> {
           Query
         </option>
       ) : null,
-      !!mutationFields ? (
+      mutationFields ? (
         <option
           key="mutation"
           className={'toolbar-button'}
@@ -2593,7 +2620,7 @@ class Explorer extends React.PureComponent<Props, State> {
           Mutation
         </option>
       ) : null,
-      !!subscriptionFields ? (
+      subscriptionFields ? (
         <option
           key="subscription"
           className={'toolbar-button'}
@@ -2810,7 +2837,7 @@ class Explorer extends React.PureComponent<Props, State> {
                       commit = true;
                     }
 
-                    if (!!newDefinition) {
+                    if (newDefinition) {
                       const newQuery: DocumentNode = {
                         ...parsedQuery,
                         definitions: parsedQuery.definitions.map(
@@ -2824,23 +2851,24 @@ class Explorer extends React.PureComponent<Props, State> {
                       if (commit) {
                         onCommit(newQuery);
                         return newQuery;
-                      } else {
+                      } 
                         return newQuery;
-                      }
-                    } else {
+                      
+                    } 
                       return parsedQuery;
-                    }
+                    
                   }}
                   schema={schema}
                   getDefaultFieldNames={getDefaultFieldNames}
                   getDefaultScalarArgValue={getDefaultScalarArgValue}
                   makeDefaultArg={makeDefaultArg}
                   onRunOperation={() => {
-                    if (!!this.props.onRunOperation) {
+                    if (this.props.onRunOperation) {
                       this.props.onRunOperation(operationName);
                     }
                   }}
                   styleConfig={styleConfig}
+                  scalarInputsPluginManager={this.scalarInputsPluginManager}
                   availableFragments={availableFragments}
                 />
               );
@@ -2862,7 +2890,7 @@ class ErrorBoundary extends React.Component<
   state = {hasError: false, error: null, errorInfo: null};
 
   componentDidCatch(error, errorInfo) {
-    this.setState({hasError: true, error: error, errorInfo: errorInfo});
+    this.setState({hasError: true, error, errorInfo});
     console.error('Error in component', error, errorInfo);
   }
 
@@ -2888,6 +2916,8 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
   static defaultProps = {
     width: 320,
     title: 'Explorer',
+    graphqlCustomScalarPlugins: [],
+    enableBundledPlugins: false,
   };
 
   render() {
@@ -2927,6 +2957,46 @@ class ExplorerWrapper extends React.PureComponent<Props, {}> {
         </div>
       </div>
     );
+  }
+}
+
+class DatePlugin {
+  name = 'DateInput';
+
+  static canProcess(arg) {
+    return arg && arg.type && arg.type.name === 'Date';
+  }
+
+  static render(props) {
+    return (
+      <input
+        type="date"
+        value={props.arg.defaultValue}
+        onChange={props.setArgValue}
+      />
+    );
+  }
+}
+
+const bundledPlugins = [DatePlugin];
+
+class ScalarInputPluginManager {
+  constructor(plugins = [], enableBundledPlugins = false) {
+    const enabledPlugins = plugins;
+    if (enableBundledPlugins) {
+      // ensure bundled plugins are the last plugins checked.
+      enabledPlugins.push(...bundledPlugins);
+    }
+    this.plugins = enabledPlugins;
+  }
+
+  process(props) {
+    // plugins are provided in order, the first matching plugin will be used.
+    const handler = this.plugins.find(plugin => plugin.canProcess(props.arg));
+    if (handler) {
+      return handler(props);
+    }
+    return null;
   }
 }
 
