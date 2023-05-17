@@ -106,6 +106,7 @@ type Props = {
   query: string,
   width?: number,
   title?: string,
+  groups?: any,
   schema?: ?GraphQLSchema,
   onEdit: string => void,
   getDefaultFieldNames?: ?(type: GraphQLObjectType) => Array<string>,
@@ -786,19 +787,6 @@ class ScalarInput extends React.PureComponent<ScalarInputProps, {}> {
     this.props.setArgValue(event, true);
   };
 
-  componentDidMount() {
-    const input = this._ref;
-    const activeElement = document.activeElement;
-    if (
-      input &&
-      activeElement &&
-      !(activeElement instanceof HTMLTextAreaElement)
-    ) {
-      input.focus();
-      input.setSelectionRange(0, input.value.length);
-    }
-  }
-
   render() {
     const {arg, argValue, styleConfig} = this.props;
     const argType = unwrapInputType(arg.type);
@@ -1130,10 +1118,11 @@ class AbstractArgView extends React.PureComponent<
       });
 
       if (newDoc) {
-        const targetOperation: ?OperationDefinitionNode = newDoc.definitions.find(
-          definition =>
-            definition.name.value === this.props.definition.name.value,
-        );
+        const targetOperation: ?OperationDefinitionNode =
+          newDoc.definitions.find(
+            definition =>
+              definition.name.value === this.props.definition.name.value,
+          );
 
         if (!targetOperation) {
           return;
@@ -1353,12 +1342,8 @@ class AbstractView extends React.PureComponent<AbstractViewProps, {}> {
   };
 
   render() {
-    const {
-      implementingType,
-      schema,
-      getDefaultFieldNames,
-      styleConfig,
-    } = this.props;
+    const {implementingType, schema, getDefaultFieldNames, styleConfig} =
+      this.props;
     const selection = this._getSelection();
     const fields = implementingType.getFields();
     const childSelections = selection
@@ -2086,6 +2071,7 @@ type RootViewProps = {|
   fields: ?GraphQLFieldMap<any, any>,
   operationType: OperationType,
   name: ?string,
+  groups: ?any,
   onTypeName: ?string,
   definition: FragmentDefinitionNode | OperationDefinitionNode,
   onEdit: (
@@ -2107,17 +2093,25 @@ type RootViewProps = {|
 
 class RootView extends React.PureComponent<
   RootViewProps,
-  {|newOperationType: NewOperationType, displayTitleActions: boolean|},
+  {|
+    newOperationType: NewOperationType,
+    displayTitleActions: boolean,
+    groupOpenList: Array<any>,
+  |},
 > {
-  state = {newOperationType: 'query', displayTitleActions: false};
+  state = {
+    newOperationType: 'query',
+    displayTitleActions: false,
+    groupOpenList: [],
+  };
   _previousOperationDef: ?OperationDefinitionNode | ?FragmentDefinitionNode;
 
   _modifySelections = (
     selections: Selections,
     options: ?{commit: boolean},
   ): DocumentNode => {
-    let operationDef: FragmentDefinitionNode | OperationDefinitionNode = this
-      .props.definition;
+    let operationDef: FragmentDefinitionNode | OperationDefinitionNode =
+      this.props.definition;
 
     if (
       operationDef.selectionSet.selections.length === 0 &&
@@ -2194,6 +2188,7 @@ class RootView extends React.PureComponent<
       definition,
       schema,
       getDefaultFieldNames,
+      groups = {},
       styleConfig,
     } = this.props;
     const rootViewElId = this._rootViewElId();
@@ -2202,8 +2197,49 @@ class RootView extends React.PureComponent<
     const operationDef = definition;
     const selections = operationDef.selectionSet.selections;
 
+    const selectionNameList = selections.map(s => s.name.value);
     const operationDisplayName =
       this.props.name || `${capitalize(operationType)} Name`;
+
+    const hasGroups = !!Object.keys(groups).length && operationType in groups;
+
+    let used_names = [];
+    const groupList = {};
+    const others = {};
+    let orderedGroupList = {};
+
+    if (hasGroups) {
+      Object.entries(groups[operationType]).forEach(([key, values]) => {
+        groupList[key] = {};
+
+        values.forEach(mutationName => {
+          if (mutationName in fields) {
+            used_names.push(mutationName);
+            groupList[key] = {
+              ...groupList[key],
+              [mutationName]: fields[mutationName],
+            };
+          }
+        });
+      });
+
+      orderedGroupList = Object.keys(groupList)
+        .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+        .reduce((acc, key) => {
+          acc[key] = groupList[key];
+          return acc;
+        }, {});
+
+      Object.entries(fields)
+        .filter(([key]) => !used_names.includes(key))
+        .forEach(([key, value]) => {
+          others[key] = value;
+        });
+
+      if (Object.keys(others).length) {
+        orderedGroupList['Others'] = others;
+      }
+    }
 
     return (
       <div
@@ -2238,59 +2274,113 @@ class RootView extends React.PureComponent<
               onChange={this._onOperationRename}
             />
           </span>
-          {!!this.props.onTypeName ? (
+          {!!this.props.onTypeName && (
             <span>
               <br />
               {`on ${this.props.onTypeName}`}
             </span>
-          ) : (
-            ''
           )}
-          {!!this.state.displayTitleActions ? (
-            <React.Fragment>
-              <button
-                type="submit"
-                className="toolbar-button"
-                onClick={() => this.props.onOperationDestroy()}
-                style={{
-                  ...styleConfig.styles.actionButtonStyle,
-                }}>
-                <span>{'\u2715'}</span>
-              </button>
-              <button
-                type="submit"
-                className="toolbar-button"
-                onClick={() => this.props.onOperationClone()}
-                style={{
-                  ...styleConfig.styles.actionButtonStyle,
-                }}>
-                <span>{'⎘'}</span>
-              </button>
-            </React.Fragment>
-          ) : (
-            ''
+          {!!this.state.displayTitleActions && (
+            <button
+              type="submit"
+              className="toolbar-button"
+              onClick={() => this.props.onOperationDestroy()}
+              style={{
+                ...styleConfig.styles.actionButtonStyle,
+              }}>
+              <span>{'\u2715'}</span>
+            </button>
           )}
         </div>
 
-        {Object.keys(fields)
-          .sort()
-          .map((fieldName: string) => (
-            <FieldView
-              key={fieldName}
-              field={fields[fieldName]}
-              selections={selections}
-              modifySelections={this._modifySelections}
-              schema={schema}
-              getDefaultFieldNames={getDefaultFieldNames}
-              getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
-              makeDefaultArg={this.props.makeDefaultArg}
-              onRunOperation={this.props.onRunOperation}
-              styleConfig={this.props.styleConfig}
-              onCommit={this.props.onCommit}
-              definition={this.props.definition}
-              availableFragments={this.props.availableFragments}
-            />
-          ))}
+        {operationType === 'mutation' && hasGroups
+          ? Object.entries(orderedGroupList).map(
+              ([groupName, groupFields], index) => {
+                const hasSelection = Object.keys(groupFields).some(f =>
+                  selectionNameList.includes(f),
+                );
+                const isOpen =
+                  this.state.groupOpenList.includes(groupName) || hasSelection;
+
+                return (
+                  <div
+                    className="graphiql-explorer-node"
+                    key={`${groupName}-${index}`}>
+                    <span
+                      style={{
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        minHeight: '16px',
+                        WebkitUserSelect: 'none',
+                        userSelect: 'none',
+                      }}
+                      onClick={() => {
+                        const groupOpenList = this.state.groupOpenList;
+
+                        this.setState({
+                          groupOpenList: isOpen
+                            ? groupOpenList.filter(name => name !== groupName)
+                            : [...groupOpenList, groupName],
+                        });
+                      }}>
+                      <span>
+                        {isOpen
+                          ? this.props.styleConfig.arrowOpen
+                          : this.props.styleConfig.arrowClosed}
+                      </span>
+                      {groupName}
+                    </span>
+                    {isOpen && (
+                      <div
+                        style={{marginLeft: 16, marginBottom: 8}}
+                        className="graphiql-explorer-graphql-arguments">
+                        {Object.keys(groupFields)
+                          .sort()
+                          .map((fieldName: string) => (
+                            <FieldView
+                              key={fieldName}
+                              field={groupFields[fieldName]}
+                              selections={selections}
+                              modifySelections={this._modifySelections}
+                              schema={schema}
+                              getDefaultFieldNames={getDefaultFieldNames}
+                              getDefaultScalarArgValue={
+                                this.props.getDefaultScalarArgValue
+                              }
+                              makeDefaultArg={this.props.makeDefaultArg}
+                              onRunOperation={this.props.onRunOperation}
+                              styleConfig={this.props.styleConfig}
+                              onCommit={this.props.onCommit}
+                              definition={this.props.definition}
+                              availableFragments={this.props.availableFragments}
+                            />
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              },
+            )
+          : Object.keys(fields)
+              .sort()
+              .map((fieldName: string) => (
+                <FieldView
+                  key={fieldName}
+                  field={fields[fieldName]}
+                  selections={selections}
+                  modifySelections={this._modifySelections}
+                  schema={schema}
+                  getDefaultFieldNames={getDefaultFieldNames}
+                  getDefaultScalarArgValue={this.props.getDefaultScalarArgValue}
+                  makeDefaultArg={this.props.makeDefaultArg}
+                  onRunOperation={this.props.onRunOperation}
+                  styleConfig={this.props.styleConfig}
+                  onCommit={this.props.onCommit}
+                  definition={this.props.definition}
+                  availableFragments={this.props.availableFragments}
+                />
+              ))}
       </div>
     );
   }
@@ -2793,6 +2883,7 @@ class Explorer extends React.PureComponent<Props, State> {
                   onOperationRename={onOperationRename}
                   onOperationDestroy={onOperationDestroy}
                   onOperationClone={onOperationClone}
+                  groups={this.props.groups}
                   onTypeName={fragmentTypeName}
                   onMount={this._handleRootViewMount}
                   onCommit={onCommit}

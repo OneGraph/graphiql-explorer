@@ -20,9 +20,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-dist/
-/graphiqlExplorer.js
-/graphiqlExplorer.min.js
+# dist/
 
 .merlin
 lib/
